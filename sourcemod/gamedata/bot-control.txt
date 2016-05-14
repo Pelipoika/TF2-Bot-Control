@@ -1,0 +1,112 @@
+"Games"
+{
+	/* Team Fortress 2 */
+	"tf"
+	{
+		"Signatures"
+		{
+			"CTFBot::LeaveSquad"
+			{
+				"library"	"server"
+				"windows"	"\x56\x8B\xF1\x8B\x8E\xA0\x24\x00\x00"
+				"linux"		"@_ZN6CTFBot10LeaveSquadEv"
+			}
+			"CTFPlayer::PlaySpecificSequence"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\x75\x08\x57\x56\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xD8\x83\xFB\xFF\x74\x2A\x8B\x35\x2A\x2A\x2A\x2A\x8B\xCE\x8B\x16\xFF\x52\x2A\x8B\x8F\x2A\x2A\x2A\x2A\x53\x6A\x13\x8B\x01\xFF\x50"
+				"linux"		"@_ZN9CTFPlayer20PlaySpecificSequenceEPKc"
+			}
+			"CTFPlayer::RemoveObject"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x8B\xD1\x56\x8B\xB2\xBC\x20\x00\x00"
+				"linux"		"@_ZN9CTFPlayer12RemoveObjectEP11CBaseObject"
+			}
+			"CTFBot::SetMission"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x80\x7D\x0C\x00\x56\x8B\xF1"
+				"linux"		"@_ZN6CTFBot10SetMissionENS_11MissionTypeEb"
+			}
+			"CTFBot::RealizeSpy"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x8B\x5D\x08\x57"
+				"linux"		"@_ZN6CTFBot10RealizeSpyEP9CTFPlayer"
+			}
+			"CTFBot::GetEventChangeAttributes"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x08\x26\x00\x00"
+				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
+			}
+			"DispatchParticleEffect"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x56\x8B\x75\x10\x57\x83\xCF\xFF"
+				"linux"		"@_Z22DispatchParticleEffectPKc20ParticleAttachment_tP11CBaseEntityS0_b"
+			}
+		}
+		"Offsets"
+		{
+			"CTFPlayer::EquipWearable"
+			{
+				"windows"	"427"
+				"linux"		"428"
+				"mac"		"428"
+			}
+			"CTFPlayer::ShouldGib"
+			{
+				"windows"	"287"
+				"linux"		"288"
+			}
+			"CTFWeaponBase::GetMaxClip1"
+			{
+				"windows"	"315"
+				"linux"		"321"
+			}
+			"CCaptureFlag::PickUp"
+			{
+				"windows"	"222"
+				"linux"		"260"
+			}
+			"CTFPlayer::IsValidObserverTarget"
+			{
+				"windows"	"380"
+				"linux"		"381"
+			}
+			"m_nWeaponRestrict"	//m_nBotAttrs - 1*4
+			{
+				"windows"	"376"
+				"linux"		"376"
+			}
+			"m_nBotAttrs"		//https://github.com/sigsegv-mvm/mvm-reversed/blob/508dc9459f54033a59207dab089c18285837b757/server/tf/bot/behavior/tf_bot_scenario_monitor.cpp#L135
+			{
+				"windows"	"380"
+				"linux"		"380"
+			}
+			"m_flAutoJumpMin"	//CTFBot::ShouldAutoJump
+			{
+				"windows"	"728"
+				"linux"		"724"
+			}
+			"m_flAutoJumpMax"	//CTFBot::ShouldAutoJump
+			{
+				"windows"	"732"
+				"linux"		"728"
+			}
+			"m_bMissionBot"
+			{
+				"windows"	"3"
+				"linux"		"3"
+			}
+			"m_bSupportLimited"
+			{
+				"windows"	"2"
+				"linux"		"2"
+			}
+		}
+	}
+}
+
