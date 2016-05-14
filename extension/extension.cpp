@@ -14,27 +14,22 @@ class CTFPlayer;
 DETOUR_DECL_MEMBER1(RealizeSpy, int, CTFPlayer *, player)
 {
 	return 0;
-	
-	return DETOUR_MEMBER_CALL(RealizeSpy)(player);
 }
 
-DETOUR_DECL_MEMBER2(GetEventChangeAttributes, int, CTFPlayer *, player, char const*, attribute)
+DETOUR_DECL_MEMBER1(GetEventChangeAttributes, int, char const*, attribute)
 {
 	int index = gamehelpers->EntityToBCompatRef(reinterpret_cast<CBaseEntity *>(this));
-	
-	g_pSM->LogMessage(myself, "CTFBot::GetEventChangeAttributes");
-	
+
 	if(index > 0 && index <= playerhelpers->GetMaxClients())
 	{
 		IGamePlayer *pPlayer = playerhelpers->GetGamePlayer(index);
 		if(pPlayer->IsConnected() && pPlayer->IsInGame() && !pPlayer->IsFakeClient())
 		{
-			g_pSM->LogMessage(myself, "CTFBot::GetEventChangeAttributes NOT BOT");
 			return 0;
 		}
 	}
 	
-	return DETOUR_MEMBER_CALL(GetEventChangeAttributes)(player, attribute);
+	return DETOUR_MEMBER_CALL(GetEventChangeAttributes)(attribute);
 }
 
 bool CRealizeSpyFixer::SDK_OnLoad(char *error, size_t maxlength, bool late)
