@@ -52,6 +52,17 @@ enum AttributeType
 	PROJECTILESHIELD        = (1 << 27),
 };
 
+enum MissionType
+{
+	NONE				= 0,
+	UNKNOWN				= 1,
+	DESTROY_SENTRIES	= 2,
+	SNIPER				= 3,
+	SPY					= 4,
+	ENGINEER			= 5,
+	REPROGRAMMED		= 6,
+};
+
 enum WeaponRestriction
 {
 	UNRESTRICTED  = 0,
@@ -159,7 +170,7 @@ public void OnPluginStart()
 	//This call is used to equip items on clients
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CTFPlayer::EquipWearable");
-	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);	//tf_wearable
 	if ((g_hSdkEquipWearable = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::EquipWearable offset!"); 
 
 	//This call will force a medicbot to ignore its previous patient
@@ -171,7 +182,7 @@ public void OnPluginStart()
 	//This call is used to set the deploy animation on the robots with the bomb
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::PlaySpecificSequence");
-	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);		//Sequence name
 	if ((g_hSDKPlaySpecificSequence = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFPlayer::PlaySpecificSequence signature!");
 
 	//This call is used to remove an objects owner
@@ -183,8 +194,8 @@ public void OnPluginStart()
 	//This call is used to make sentry busters behave nicely
 	StartPrepSDKCall(SDKCall_Player); 
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBot::SetMission");
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);	//MissionType
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//StartSound
 	if ((g_hSDKSetMission = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::SetMission signature!"); 
 
 	//This call will play a particle effect
@@ -200,14 +211,14 @@ public void OnPluginStart()
 	//This call gets the maximum clip 1 of a weapon
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CTFWeaponBase::GetMaxClip1");
-	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);	//Clip
 	if ((g_hSDKGetMaxClip = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFWeaponBase::GetMaxClip1 offset!");
 	
 	//This call forces a player to pickup the intel
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CCaptureFlag::PickUp");
-	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
-	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);	//CCaptureFlag
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//silent pickup? or maybe it doesnt exist im not sure.
 	if ((g_hSDKPickup = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 
 	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_iCampaignMedals"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
@@ -1560,7 +1571,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Is target sentry buster?
 	if(StrContains(strModel, "bot_sentry_buster.mdl") != -1)
 	{
-		SDKCall(g_hSDKSetMission, iTarget, 0, 0);
+		SDKCall(g_hSDKSetMission, iTarget, NONE, 0);
 		g_bIsSentryBuster[client] = true;
 		TF2Attrib_SetByName(client, "cannot pick up intelligence", 1.0);
 	}
@@ -2055,7 +2066,7 @@ stock void TF2_DetonateBuster(int client)
 		SetEntityMoveType(iBot, MOVETYPE_WALK);
 		TeleportEntity(iBot, flPos, flAng, flVelocity);
 		
-		SDKCall(g_hSDKSetMission, iBot, 2, 1);	
+		SDKCall(g_hSDKSetMission, iBot, DESTROY_SENTRIES, 1);	
 		
 		SetEntProp(iBot, Prop_Send, "m_iHealth", 1);
 		SetEntPropEnt(client, Prop_Send, "m_hObserverTarget", iBot);
