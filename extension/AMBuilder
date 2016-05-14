@@ -4,7 +4,7 @@ import os, sys
 projectName = 'realizespyfixer'
 
 sourceFiles = [
-	'extension2.cpp',
+	'extension.cpp',
 ]
 
 project = Extension.HL2Project(builder, projectName + '.ext')

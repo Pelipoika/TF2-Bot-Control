@@ -38,13 +38,15 @@ bool CRealizeSpyFixer::SDK_OnLoad(char *error, size_t maxlength, bool late)
 	
 	CDetourManager::Init(g_pSM->GetScriptingEngine(), g_pGameConf);
 	
-	if((g_RealizeSpyDetour = DETOUR_CREATE_MEMBER(RealizeSpy, "CTFBot::RealizeSpy")) != NULL)
+	g_RealizeSpyDetour = DETOUR_CREATE_MEMBER(RealizeSpy, "CTFBot::RealizeSpy")
+	if(g_RealizeSpyDetour != NULL)
 	{
 		g_RealizeSpyDetour->EnableDetour();
 		g_pSM->LogMessage(myself, "CTFBot::RealizeSpy detour enabled.");
 	}
 	
-	if((g_GetEventChangeAttributes = DETOUR_CREATE_MEMBER(GetEventChangeAttributes, "CTFBot::GetEventChangeAttributes")) != NULL)
+	g_GetEventChangeAttributes = DETOUR_CREATE_MEMBER(GetEventChangeAttributes, "CTFBot::GetEventChangeAttributes")
+	if(g_GetEventChangeAttributes != NULL)
 	{
 		g_GetEventChangeAttributes->EnableDetour();
 		g_pSM->LogMessage(myself, "CTFBot::GetEventChangeAttributes detour enabled.");
