@@ -54,13 +54,13 @@ enum AttributeType
 
 enum MissionType
 {
-	NONE				= 0,
-	UNKNOWN				= 1,
-	DESTROY_SENTRIES	= 2,
-	SNIPER				= 3,
-	SPY					= 4,
-	ENGINEER			= 5,
-	REPROGRAMMED		= 6,
+	NOMISSION         = 0,
+	UNKNOWN           = 1,
+	DESTROY_SENTRIES  = 2,
+	SNIPER            = 3,
+	SPY               = 4,
+	ENGINEER          = 5,
+	REPROGRAMMED      = 6,
 };
 
 enum WeaponRestriction
@@ -133,7 +133,6 @@ int g_iController[MAXPLAYERS+1];
 bool g_bIsSentryBuster[MAXPLAYERS+1];
 bool g_bIsGateBot[MAXPLAYERS+1];
 bool g_bDeploying[MAXPLAYERS+1];
-bool g_bSpectateNextSpawn[MAXPLAYERS+1];
 float g_flSpawnTime[MAXPLAYERS+1];
 
 //Is map Mannhattan
@@ -271,7 +270,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_joinbrobot", Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_robot", Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_randombot", Command_ToggleRandomPicker);
-	
+
 	for(int client = 1; client <= MaxClients; client++)
 		if(IsClientInGame(client))
 			OnClientPutInServer(client);
@@ -340,7 +339,6 @@ public void OnClientPutInServer(int client)
 	g_iController[client] = -1;
 	g_bIsGateBot[client] = false;
 	g_bIsSentryBuster[client] = false;
-	g_bSpectateNextSpawn[client] = false;
 	g_bSkipInventory[client] = false;
 	g_bCanPlayAsBot[client] = true;
 	
@@ -1132,14 +1130,6 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 
 				g_bSkipInventory[client] = false;
 			}
-		
-			if(g_bSpectateNextSpawn[client])
-			{
-				g_bSpectateNextSpawn[client] = false;
-				
-				TF2_ClearBot(client, true);
-				TF2_ChangeClientTeam(client, TFTeam_Spectator);
-			}
 		}
 		
 		if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) != TFClass_Spy && IsFakeClient(client))
@@ -1203,8 +1193,6 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 			}
 			else
 			{
-				g_bSpectateNextSpawn[client] = true;
-			
 				TF2_KillBot(client);
 			}
 		}
@@ -1494,7 +1482,6 @@ stock void TF2_ClearBot(int client, bool bKill = false)
 	
 	if(bKill)
 	{
-		g_bSpectateNextSpawn[client] = false;
 		TF2_KillBot(client);
 	}
 	
@@ -1571,7 +1558,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Is target sentry buster?
 	if(StrContains(strModel, "bot_sentry_buster.mdl") != -1)
 	{
-		SDKCall(g_hSDKSetMission, iTarget, NONE, 0);
+		SDKCall(g_hSDKSetMission, iTarget, NOMISSION, 0);
 		g_bIsSentryBuster[client] = true;
 		TF2Attrib_SetByName(client, "cannot pick up intelligence", 1.0);
 	}
@@ -1674,7 +1661,10 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Start the engines
 	if(TF2_IsGiant(iTarget))
 	{
-		if(g_bIsSentryBuster[client]) EmitSoundToAll(BUSTER_SND_LOOP, client, SNDCHAN_STATIC, SNDLEVEL_TRAIN, _, 1.0);
+		if(g_bIsSentryBuster[client]) 
+		{
+			EmitSoundToAll(BUSTER_SND_LOOP, client, SNDCHAN_STATIC, SNDLEVEL_TRAIN, _, 1.0);
+		}
 		else
 		{	
 			switch(TF2_GetPlayerClass(iTarget))
