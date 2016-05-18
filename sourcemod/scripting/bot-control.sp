@@ -384,7 +384,7 @@ public MRESReturn IsValidTarget(int pThis, Handle hReturn, Handle hParams)
 
 public MRESReturn CTFPlayer_ShouldGib(int pThis, Handle hReturn, Handle hParams)
 {
-	if(GameRules_GetProp("m_bPlayingMannVsMachine") && TF2_GetClientTeam(pThis) == TFTeam_Blue)
+	if(GameRules_GetProp("m_bPlayingMannVsMachine") && !DHookIsNullParam(hParams, 1) && TF2_GetClientTeam(pThis) == TFTeam_Blue)
 	{
 		bool is_miniboss = view_as<bool>(GetEntProp(pThis, Prop_Send, "m_bIsMiniBoss"));
 		float m_flModelScale = GetEntPropFloat(pThis, Prop_Send, "m_flModelScale");
@@ -536,7 +536,7 @@ public void DisableAnim(int userid)
 	int client = GetClientOfUserId(userid)
 	if(client > 0)
 	{
-		if(iCount > 2)
+		if(iCount > 6)
 		{
 			float vecClientPos[3], vecTargetPos[3];
 			GetClientAbsOrigin(client, vecClientPos);
