@@ -500,7 +500,7 @@ public Action OnFlagTouch(int iEntity, int iOther)
 	if(iOther > 0 && iOther <= MaxClients && IsClientInGame(iOther) && !IsFakeClient(iOther) && IsPlayerAlive(iOther) 
 	&& g_bControllingBot[iOther] && !g_bIsGateBot[iOther] && !g_bIsSentryBuster[iOther] && !g_bHasBomb[iOther] && TF2Attrib_GetByName(iOther, "cannot pick up intelligence") == Address_Null)
 	{
-		TF2_PickupFlag(iOther, iEntity);
+	//	TF2_PickupFlag(iOther, iEntity);
 	}
 }
 
@@ -577,6 +577,7 @@ public void DisableAnim(int userid)
 		}
 		else
 		{
+			SDKCall(g_hSDKPlaySpecificSequence, client, "primary_deploybomb");			
 			RequestFrame(DisableAnim, userid);
 			iCount++;
 		}
@@ -1692,7 +1693,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	if(iBotAttrs & view_as<int>(BLASTIMMUNE))	TF2_AddCondition(client, TFCond_BlastImmune);
 	if(iBotAttrs & view_as<int>(FIREIMMUNE))	TF2_AddCondition(client, TFCond_FireImmune);
 	
-	SetEntData(client, g_iOffsetBotAttribs, iBotAttrs, true);	//It does stuff, trust me.
+//	SetEntData(client, g_iOffsetBotAttribs, iBotAttrs, true);	//It does stuff, trust me.
 	SetEntData(client, g_iOffsetMissionBot, 1, _, true);		//Makes player death not decrement wave bot count
 	SetEntData(client, g_iOffsetSupportLimited, 0, _, true);	//Makes player death not decrement wave bot count
 	
