@@ -768,14 +768,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					if(iClip1 < iMaxClip1 && buttons & IN_ATTACK)
 					{
 						SetHudTextParams(-1.0, -0.65, 0.25, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
-						ShowHudText(client, -1, "CANNOT FIRE UNTIL FULLY RELOADED!");
+						ShowHudText(client, -1, "CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON");
 
-						SetEntPropFloat(iActiveWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.25);
+						SetEntPropFloat(iActiveWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.1);
 					}
 					
 					if(iClip1 >= iMaxClip1)
 					{
-						SetHudTextParams(-1.0, -0.65, 0.75, 100, 255, 100, 255, 0, 0.0, 0.0, 0.0);
+						SetHudTextParams(-1.0, -0.65, 1.75, 100, 255, 100, 255, 0, 0.0, 0.0, 0.0);
 						ShowHudText(client, -1, "READY TO FIRE!");
 					
 						g_bReloadingBarrage[client] = false;
@@ -858,102 +858,105 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				SetEntProp(iBot, Prop_Send, "m_iHealth", GetEntProp(client, Prop_Send, "m_iHealth"));
 		}
 		
-		if(g_bDeploying[client] && g_bHasBomb[client])
+		if(g_bHasBomb[client])
 		{
-			if(g_flBombDeployTime[client] <= GetGameTime())
+			if(g_bDeploying[client])
 			{
-				if(iBot > 0 && IsFakeClient(iBot))
-					CPrintToChatAll("{blue}%N{default} playing as {blue}%N{default} deployed the {unique}BOMB{default} with {red}%i HP!", client, iBot, GetEntProp(client, Prop_Send, "m_iHealth"));
-				else
-					CPrintToChatAll("{blue}%N{default} deployed the {unique}BOMB{default} with {red}%i HP!", client, GetEntProp(client, Prop_Send, "m_iHealth"));
-				
-				g_bBlockRagdoll = true;
-				g_bHasBomb[client] = false;
-				g_bDeploying[client] = false;
-				
-				TF2_RobotsWin();
-				
-				g_flCooldownEndTime[client] = GetGameTime() + 10.0;
-				
-				BroadcastSoundToTeam(TFTeam_Spectator, "Announcer.MVM_Robots_Planted");
-			}
-			
-			buttons &= ~IN_JUMP;
-			buttons &= ~IN_ATTACK;
-			buttons &= ~IN_ATTACK2;
-			buttons &= ~IN_ATTACK3;
-		
-			vel[0] = 0.0;
-			vel[1] = 0.0;
-			vel[2] = 0.0;
-			
-			return Plugin_Changed;
-		}
-		
-		if(g_bHasBomb[client] && !TF2_IsPlayerInCondition(client, TFCond_Taunting) && !g_bDeploying[client] && !TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden))
-		{
-			buttons &= ~IN_JUMP;
-		
-			if(g_iFlagCarrierUpgradeLevel[client] > 0)
-			{
-				float pPos[3];
-				GetClientAbsOrigin(client, pPos);
-				
-				for(int i = 1; i <= MaxClients; i++)
+				if(g_flBombDeployTime[client] <= GetGameTime())
 				{
-					if(IsClientInGame(i) && GetClientTeam(i) == GetClientTeam(client) && i != client && g_iFlagCarrierUpgradeLevel[client] >= 1)
+					if(iBot > 0 && IsFakeClient(iBot))
+						CPrintToChatAll("{blue}%N{default} playing as {blue}%N{default} deployed the {unique}BOMB{default} with {red}%i HP!", client, iBot, GetEntProp(client, Prop_Send, "m_iHealth"));
+					else
+						CPrintToChatAll("{blue}%N{default} deployed the {unique}BOMB{default} with {red}%i HP!", client, GetEntProp(client, Prop_Send, "m_iHealth"));
+					
+					g_bBlockRagdoll = true;
+					g_bHasBomb[client] = false;
+					g_bDeploying[client] = false;
+					
+					TF2_RobotsWin();
+					
+					g_flCooldownEndTime[client] = GetGameTime() + 10.0;
+					
+					BroadcastSoundToTeam(TFTeam_Spectator, "Announcer.MVM_Robots_Planted");
+				}
+				
+				buttons &= ~IN_JUMP;
+				buttons &= ~IN_ATTACK;
+				buttons &= ~IN_ATTACK2;
+				buttons &= ~IN_ATTACK3;
+			
+				vel[0] = 0.0;
+				vel[1] = 0.0;
+				vel[2] = 0.0;
+				
+				return Plugin_Changed;
+			}
+		
+			if(!TF2_IsPlayerInCondition(client, TFCond_Taunting) && !TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden) && !g_bDeploying[client])
+			{
+				buttons &= ~IN_JUMP;
+			
+				if(g_iFlagCarrierUpgradeLevel[client] > 0)
+				{
+					float pPos[3];
+					GetClientAbsOrigin(client, pPos);
+					
+					for(int i = 1; i <= MaxClients; i++)
 					{
-						float iPos[3];
-						GetClientAbsOrigin(i, iPos);
-						
-						float flDistance = GetVectorDistance(pPos, iPos);
-						
-						if(flDistance <= 450.0)
+						if(IsClientInGame(i) && GetClientTeam(i) == GetClientTeam(client) && i != client && g_iFlagCarrierUpgradeLevel[client] >= 1)
 						{
-							TF2_AddCondition(i, TFCond_DefenseBuffNoCritBlock, 0.125);
+							float iPos[3];
+							GetClientAbsOrigin(i, iPos);
+							
+							float flDistance = GetVectorDistance(pPos, iPos);
+							
+							if(flDistance <= 450.0)
+							{
+								TF2_AddCondition(i, TFCond_DefenseBuffNoCritBlock, 0.125);
+							}
 						}
 					}
 				}
-			}
-		
-			if(g_flNextBombUpgradeTime[client] <= GetGameTime() && g_iFlagCarrierUpgradeLevel[client] < 3 && GetEntPropEnt(client, Prop_Send, "m_hGroundEntity") != -1)	//Time to upgrade
-			{
-				FakeClientCommand(client, "taunt");
-				
-				if(TF2_IsPlayerInCondition(client, TFCond_Taunting))
+			
+				if(g_flNextBombUpgradeTime[client] <= GetGameTime() && g_iFlagCarrierUpgradeLevel[client] < 3 && GetEntPropEnt(client, Prop_Send, "m_hGroundEntity") != -1)	//Time to upgrade
 				{
-					g_iFlagCarrierUpgradeLevel[client]++;
+					FakeClientCommand(client, "taunt");
 					
-					switch(g_iFlagCarrierUpgradeLevel[client])
+					if(TF2_IsPlayerInCondition(client, TFCond_Taunting))
 					{
-						case 1: 
+						g_iFlagCarrierUpgradeLevel[client]++;
+						
+						switch(g_iFlagCarrierUpgradeLevel[client])
 						{
-							g_flNextBombUpgradeTime[client] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_2nd_upgrade")); 
-							TF2_AddCondition(client, TFCond_DefenseBuffNoCritBlock, TFCondDuration_Infinite);
-							
-							SDKCall(g_hSDKDispatchParticleEffect, "mvm_levelup1", PATTACH_POINT_FOLLOW, client, "head", 0);
+							case 1: 
+							{
+								g_flNextBombUpgradeTime[client] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_2nd_upgrade")); 
+								TF2_AddCondition(client, TFCond_DefenseBuffNoCritBlock, TFCondDuration_Infinite);
+								
+								SDKCall(g_hSDKDispatchParticleEffect, "mvm_levelup1", PATTACH_POINT_FOLLOW, client, "head", 0);
+							}
+							case 2: 
+							{
+								g_flNextBombUpgradeTime[client] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade"));
+								
+								Address pRegen = TF2Attrib_GetByName(client, "health regen");
+								float flRegen = 0.0;
+								if(pRegen != Address_Null)
+									flRegen = TF2Attrib_GetValue(pRegen);
+								
+								TF2Attrib_SetByName(client, "health regen", flRegen + 45.0);
+								SDKCall(g_hSDKDispatchParticleEffect, "mvm_levelup2", PATTACH_POINT_FOLLOW, client, "head", 0);
+							}
+							case 3: 
+							{
+								TF2_AddCondition(client, TFCond_CritOnWin, TFCondDuration_Infinite);
+								SDKCall(g_hSDKDispatchParticleEffect, "mvm_levelup3", PATTACH_POINT_FOLLOW, client, "head", 0);
+							}
 						}
-						case 2: 
-						{
-							g_flNextBombUpgradeTime[client] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade"));
-							
-							Address pRegen = TF2Attrib_GetByName(client, "health regen");
-							float flRegen = 0.0;
-							if(pRegen != Address_Null)
-								flRegen = TF2Attrib_GetValue(pRegen);
-							
-							TF2Attrib_SetByName(client, "health regen", flRegen + 45.0);
-							SDKCall(g_hSDKDispatchParticleEffect, "mvm_levelup2", PATTACH_POINT_FOLLOW, client, "head", 0);
-						}
-						case 3: 
-						{
-							TF2_AddCondition(client, TFCond_CritOnWin, TFCondDuration_Infinite);
-							SDKCall(g_hSDKDispatchParticleEffect, "mvm_levelup3", PATTACH_POINT_FOLLOW, client, "head", 0);
-						}
+						
+						UpdateBombHud(GetClientUserId(client));
+						EmitSoundToAll(BOMB_UPGRADE, SOUND_FROM_WORLD, SNDCHAN_STATIC, SNDLEVEL_NONE, SND_NOFLAGS, 0.500, SNDPITCH_NORMAL);
 					}
-					
-					UpdateBombHud(GetClientUserId(client));
-					EmitSoundToAll(BOMB_UPGRADE, SOUND_FROM_WORLD, SNDCHAN_STATIC, SNDLEVEL_NONE, SND_NOFLAGS, 0.500, SNDPITCH_NORMAL);
 				}
 			}
 		}
