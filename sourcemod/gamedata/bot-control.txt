@@ -41,6 +41,30 @@
 				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x08\x26\x00\x00"
 				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
 			}
+			"CCaptureFlag::AddFollower"	//(CCaptureFlag *this, CTFBot *)
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\x7D\x08\x8B\xD9\x85\xFF\x74\x2A\x8B\x07\x8B\xCF\xFF\x50\x08\x8B\x00\x89\x45\x08\xEB\x2A\xC7\x45\x08\xFF\xFF\xFF\xFF\x8D\x45\x08\x50\x8D\x8B\xA4\x06\x00\x00"
+				"linux"		"@_ZN12CCaptureFlag11AddFollowerEP6CTFBot"
+			}
+			"CTFBot::HasTag"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x56\x33\xF6\x57\x39\xB3\x4C\x25\x00\x00"
+				"linux"		"@_ZN6CTFBot6HasTagEPKc"
+			}	
+			"CTFBot::AddTag"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x0C\x01\x00\x00\x56\xFF\x75\x08"
+				"linux"		"@_ZN6CTFBot6AddTagEPKc"
+			}
+			"CTFBot::RemoveTag"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x4C\x25\x00\x00"
+				"linux"		"@_ZN6CTFBot9RemoveTagEPKc"
+			}
 			"DispatchParticleEffect"
 			{
 				"library"	"server"
