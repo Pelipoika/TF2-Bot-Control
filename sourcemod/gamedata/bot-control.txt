@@ -8,7 +8,7 @@
 			"CTFBot::LeaveSquad"
 			{
 				"library"	"server"
-				"windows"	"\x56\x8B\xF1\x8B\x8E\xB0\x24\x00\x00"
+				"windows"	"\x56\x8B\xF1\x8B\x8E\xC8\x24\x00\x00"
 				"linux"		"@_ZN6CTFBot10LeaveSquadEv"
 			}
 			"CTFPlayer::PlaySpecificSequence"
@@ -20,7 +20,7 @@
 			"CTFPlayer::RemoveObject"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x8B\xD1\x56\x8B\xB2\xBC\x20\x00\x00"
+				"windows"	"\x55\x8B\xEC\x8B\xD1\x56\x8B\xB2\xD0\x20\x00\x00"
 				"linux"		"@_ZN9CTFPlayer12RemoveObjectEP11CBaseObject"
 			}
 			"CTFBot::SetMission"
@@ -38,7 +38,7 @@
 			"CTFBot::GetEventChangeAttributes"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x18\x26\x00\x00"
+				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x30\x26\x00\x00"
 				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
 			}
 			"CCaptureFlag::AddFollower"	//(CCaptureFlag *this, CTFBot *)
@@ -102,23 +102,23 @@
 			}
 			"m_nWeaponRestrict"	//m_nBotAttrs - 1*4
 			{
-				"windows"	"380"
-				"linux"		"380"
+				"windows"	"340"
+				"linux"		"340"
 			}
 			"m_nBotAttrs"		//https://github.com/sigsegv-mvm/mvm-reversed/blob/508dc9459f54033a59207dab089c18285837b757/server/tf/bot/behavior/tf_bot_scenario_monitor.cpp#L135
 			{
-				"windows"	"384"
-				"linux"		"384"
+				"windows"	"344"
+				"linux"		"344"
 			}
 			"m_flAutoJumpMin"	//CTFBot::ShouldAutoJump
 			{
-				"windows"	"732"
-				"linux"		"728" 
+				"windows"	"692"
+				"linux"		"692" 
 			}
 			"m_flAutoJumpMax"	//CTFBot::ShouldAutoJump
 			{
-				"windows"	"736"
-				"linux"		"732"
+				"windows"	"696"
+				"linux"		"696"
 			}
 			"m_bMissionBot"
 			{
