@@ -220,12 +220,12 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//silent pickup? or maybe it doesnt exist im not sure.
 	if ((g_hSDKPickup = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 
-	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_iCampaignMedals"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
-	if(LookupOffset(g_iOffsetBotAttribs, "CTFPlayer", "m_iCampaignMedals"))			g_iOffsetBotAttribs += GameConfGetOffset(hConf, "m_nBotAttrs");	
-	if(LookupOffset(g_iOffsetAutoJumpMin, "CTFPlayer", "m_iCampaignMedals"))		g_iOffsetAutoJumpMin += GameConfGetOffset(hConf, "m_flAutoJumpMin");
-	if(LookupOffset(g_iOffsetAutoJumpMax, "CTFPlayer", "m_iCampaignMedals"))		g_iOffsetAutoJumpMax += GameConfGetOffset(hConf, "m_flAutoJumpMax");
-	if(LookupOffset(g_iOffsetMissionBot, "CTFPlayer", "m_nCurrency"))				g_iOffsetMissionBot -= GameConfGetOffset(hConf, "m_bMissionBot");
-	if(LookupOffset(g_iOffsetSupportLimited, "CTFPlayer", "m_nCurrency"))			g_iOffsetSupportLimited -= GameConfGetOffset(hConf, "m_bSupportLimited");
+	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
+	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetBotAttribs += GameConfGetOffset(hConf, "m_nBotAttrs");	
+	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMin += GameConfGetOffset(hConf, "m_flAutoJumpMin");
+	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMax += GameConfGetOffset(hConf, "m_flAutoJumpMax");
+	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))			g_iOffsetMissionBot -= GameConfGetOffset(hConf, "m_bMissionBot");
+	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))			g_iOffsetSupportLimited -= GameConfGetOffset(hConf, "m_bSupportLimited");
 
 	int iOffset = GameConfGetOffset(hConf, "CTFPlayer::ShouldGib");
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::ShouldGib");
