@@ -248,28 +248,28 @@ public void OnPluginStart()
 	
 	SteamWorks_SetGameDescription(":: Bot Control ::");
 
-	AddCommandListener(Listener_Voice, "voicemenu");
-	AddCommandListener(Listener_Jointeam, "jointeam");
-	AddCommandListener(Listener_Block, "autoteam");
-	AddCommandListener(Listener_Block, "kill");
-	AddCommandListener(Listener_Block, "explode");
-	AddCommandListener(Listener_Build, "build");
+	AddCommandListener(Listener_Voice,      "voicemenu");
+	AddCommandListener(Listener_Jointeam,   "jointeam");
+	AddCommandListener(Listener_Block,      "autoteam");
+	AddCommandListener(Listener_Block,      "kill");
+	AddCommandListener(Listener_Block,      "explode");
+	AddCommandListener(Listener_Build,      "build");
 	AddCommandListener(Listener_ChoseHuman, "tournament_player_readystate");
 
-	HookEvent("teamplay_flag_event", Event_FlagEvent);
-	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
-	HookEvent("player_spawn", Event_PlayerSpawn);
-	HookEvent("player_team", Event_PlayerTeam, EventHookMode_Pre);
-	HookEvent("player_builtobject", Event_BuildObject);
+	HookEvent("teamplay_flag_event",  Event_FlagEvent);
+	HookEvent("player_death",         Event_PlayerDeath, EventHookMode_Pre);
+	HookEvent("player_spawn",         Event_PlayerSpawn);
+	HookEvent("player_team",          Event_PlayerTeam, EventHookMode_Pre);
+	HookEvent("player_builtobject",   Event_BuildObject);
 	HookEvent("teamplay_round_start", Event_ResetBots);
-	HookEvent("mvm_wave_complete", Event_ResetBots);
+	HookEvent("mvm_wave_complete",    Event_ResetBots);
 	HookEvent("player_sapped_object", Event_SappedObject);
 
-	RegConsoleCmd("sm_joinblue", Command_ToggleRandomPicker);
-	RegConsoleCmd("sm_joinblu", Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_joinblue",   Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_joinblu",    Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_joinbrobot", Command_ToggleRandomPicker);
-	RegConsoleCmd("sm_robot", Command_ToggleRandomPicker);
-	RegConsoleCmd("sm_randombot", Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_robot",      Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_randombot",  Command_ToggleRandomPicker);
 
 	for(int client = 1; client <= MaxClients; client++)
 		if(IsClientInGame(client))
@@ -1311,13 +1311,34 @@ public Action Listener_Build(int client, char[] command, int args)
 			char strArg1[8], strArg2[8];
 			GetCmdArg(1, strArg1, sizeof(strArg1));
 			GetCmdArg(2, strArg2, sizeof(strArg2));
-
-			if((StringToInt(strArg1) == 1 && StringToInt(strArg2) == 0))
+			
+			TFObjectType objType = view_as<TFObjectType>(StringToInt(strArg1));
+			int iCount = TF2_GetObjectCount(client, objType);
+			
+			if(iCount >= 1)
+				return Plugin_Handled;
+			
+			if(objType == TFObject_Teleporter && StringToInt(strArg2) == 0)
 				return Plugin_Handled;
 		}
 	}
 	
 	return Plugin_Continue;
+}
+
+stock int TF2_GetObjectCount(int client, TFObjectType type)
+{
+	int iObject = -1, iCount = 0;
+	while ((iObject = FindEntityByClassname(iObject, "obj_*")) != -1)
+	{
+		TFObjectType iObjType = TF2_GetObjectType(iObject);
+		if(iObjType == type)
+		{
+			iCount++;
+		}
+	}
+	
+	return iCount;
 }
 
 public Action Listener_Jointeam(int client, char[] command, int args)
