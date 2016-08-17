@@ -85,6 +85,11 @@
 				"windows"	"287"
 				"linux"		"288"
 			}
+			"CTFBot::IsAllowedToPickUpFlag"
+			{
+				"windows"	"470"
+				"linux"		"471"
+			}
 			"CTFWeaponBase::GetMaxClip1"
 			{
 				"windows"	"315"
