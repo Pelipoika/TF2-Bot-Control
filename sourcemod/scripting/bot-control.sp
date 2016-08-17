@@ -97,6 +97,7 @@ Handle g_hSDKRemoveObject;
 //DHooks
 Handle g_hIsValidTarget;
 Handle g_hCTFPlayerShouldGib;
+Handle g_hCTFBotIsAllowedToPickupFlag;
 
 //Offsets
 int g_iOffsetWeaponRestrictions;
@@ -232,6 +233,10 @@ public void OnPluginStart()
 	g_hCTFPlayerShouldGib = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFPlayer_ShouldGib);
 	DHookAddParam(g_hCTFPlayerShouldGib, HookParamType_ObjectPtr, -1, DHookPass_ByRef);
 	
+	iOffset = GameConfGetOffset(hConf, "CTFBot::IsAllowedToPickUpFlag");
+	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::IsAllowedToPickUpFlag");
+	g_hCTFBotIsAllowedToPickupFlag = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFBot_IsAllowedToPickupFlag);
+
 	iOffset = GameConfGetOffset(hConf, "CTFPlayer::IsValidObserverTarget");	
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFPlayer::IsValidObserverTarget");
 	g_hIsValidTarget = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, IsValidTarget);
@@ -358,8 +363,9 @@ public void OnClientPutInServer(int client)
 	g_bDeploying[client] = false;
 	g_flBombDeployTime[client] = -1.0;
 	
-	DHookEntity(g_hCTFPlayerShouldGib, true, client);
-	DHookEntity(g_hIsValidTarget, true, client);
+	DHookEntity(g_hCTFPlayerShouldGib,          true, client);
+	DHookEntity(g_hIsValidTarget,               true, client);
+	DHookEntity(g_hCTFBotIsAllowedToPickupFlag, true, client);
 	
 	SDKHook(client, SDKHook_SetTransmit, Hook_SpyTransmit);
 }
@@ -407,6 +413,17 @@ public MRESReturn CTFPlayer_ShouldGib(int pThis, Handle hReturn, Handle hParams)
 	}
 	
 	return MRES_Ignored;
+}
+
+public MRESReturn CTFBot_IsAllowedToPickupFlag(int pThis, Handle hReturn, Handle hParams)
+{
+	if(!IsPlayerAlive(pThis) || IsFakeClient(pThis))
+		return MRES_Ignored;
+	
+	if(!g_bIsGateBot[pThis] && !g_bIsSentryBuster[pThis] && !g_bHasBomb[pThis] && TF2Attrib_GetByName(pThis, "cannot pick up intelligence") == Address_Null)
+		DHookSetReturn(hReturn, true);
+	
+	return MRES_Supercede;
 }
 
 public void OnClientDisconnect(int client)
@@ -1307,7 +1324,7 @@ public Action Listener_Build(int client, char[] command, int args)
 	if(IsClientInGame(client) && g_bControllingBot[client] && IsPlayerAlive(client))
 	{
 		if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) == TFClass_Engineer)
-		{	
+		{
 			char strArg1[8], strArg2[8];
 			GetCmdArg(1, strArg1, sizeof(strArg1));
 			GetCmdArg(2, strArg2, sizeof(strArg2));
