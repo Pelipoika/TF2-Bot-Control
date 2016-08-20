@@ -1330,12 +1330,13 @@ public Action Listener_Build(int client, char[] command, int args)
 			GetCmdArg(2, strArg2, sizeof(strArg2));
 			
 			TFObjectType objType = view_as<TFObjectType>(StringToInt(strArg1));
+			TFObjectMode objMode = view_as<TFObjectMode>(StringToInt(strArg2));
 			int iCount = TF2_GetObjectCount(client, objType);
 			
 			if(iCount >= 1)
 				return Plugin_Handled;
 			
-			if(objType == TFObject_Teleporter && StringToInt(strArg2) == 0)
+			if(objType == TFObject_Teleporter && objMode == TFObjectMode_Entrance)
 				return Plugin_Handled;
 		}
 	}
@@ -1349,7 +1350,7 @@ stock int TF2_GetObjectCount(int client, TFObjectType type)
 	while ((iObject = FindEntityByClassname(iObject, "obj_*")) != -1)
 	{
 		TFObjectType iObjType = TF2_GetObjectType(iObject);
-		if(iObjType == type)
+		if(GetEntPropEnt(iObject, Prop_Send, "m_hBuilder") == client && iObjType == type)
 		{
 			iCount++;
 		}
