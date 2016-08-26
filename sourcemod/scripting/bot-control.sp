@@ -421,9 +421,12 @@ public MRESReturn CTFBot_IsAllowedToPickupFlag(int pThis, Handle hReturn, Handle
 		return MRES_Ignored;
 	
 	if(!g_bIsGateBot[pThis] && !g_bIsSentryBuster[pThis] && !g_bHasBomb[pThis] && TF2Attrib_GetByName(pThis, "cannot pick up intelligence") == Address_Null)
+	{
 		DHookSetReturn(hReturn, true);
+		return MRES_Supercede;
+	}
 	
-	return MRES_Supercede;
+	return MRES_Ignored;
 }
 
 public void OnClientDisconnect(int client)
@@ -2089,6 +2092,8 @@ stock void TF2_DetonateBuster(int client)
 	
 	if(iBot > 0 && IsFakeClient(iBot))
 	{
+		g_bIsControlled[iBot] = false;	//Allows spectating of the sentry buster during its detonation.
+	
 		TF2_StopSounds(client);
 	
 		float flPos[3], flAng[3], flVelocity[3];
