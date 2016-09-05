@@ -1,7 +1,7 @@
 # TF2-Bot-Control
 Allows players to take over a robot in Mann vs Machine
 
-Requires:
+# Requirements:
 TF2Attributes https://forums.alliedmods.net/showthread.php?t=210221
 TF2Items https://forums.alliedmods.net/forumdisplay.php?f=146
 DHooks https://forums.alliedmods.net/showthread.php?t=180114
