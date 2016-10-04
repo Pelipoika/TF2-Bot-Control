@@ -255,6 +255,7 @@ public void OnPluginStart()
 
 	AddCommandListener(Listener_Voice,      "voicemenu");
 	AddCommandListener(Listener_Jointeam,   "jointeam");
+	AddCommandListener(Listener_Jointeam,   "spectate");
 	AddCommandListener(Listener_Block,      "autoteam");
 	AddCommandListener(Listener_Block,      "kill");
 	AddCommandListener(Listener_Block,      "explode");
@@ -420,12 +421,12 @@ public MRESReturn CTFBot_IsAllowedToPickupFlag(int pThis, Handle hReturn, Handle
 	if(!IsPlayerAlive(pThis) || IsFakeClient(pThis))
 		return MRES_Ignored;
 	
-	if(!g_bIsGateBot[pThis] && !g_bIsSentryBuster[pThis] && !g_bHasBomb[pThis] && TF2Attrib_GetByName(pThis, "cannot pick up intelligence") == Address_Null)
+	if(!g_bIsGateBot[pThis] && !g_bIsSentryBuster[pThis] && TF2Attrib_GetByName(pThis, "cannot pick up intelligence") == Address_Null)
 	{
 		DHookSetReturn(hReturn, true);
 		return MRES_Supercede;
 	}
-	
+
 	return MRES_Ignored;
 }
 
@@ -2092,8 +2093,6 @@ stock void TF2_DetonateBuster(int client)
 	
 	if(iBot > 0 && IsFakeClient(iBot))
 	{
-		g_bIsControlled[iBot] = false;	//Allows spectating of the sentry buster during its detonation.
-	
 		TF2_StopSounds(client);
 	
 		float flPos[3], flAng[3], flVelocity[3];
@@ -2237,9 +2236,13 @@ public void GiveItem(int client, int DefIndex, char[] ItemClass, int iAttribCoun
 	else
 		TF2Item = TF2Items_CreateItem(OVERRIDE_ALL|FORCE_GENERATION|PRESERVE_ATTRIBUTES);
 	
-	bool IsWeapon = StrContains(ItemClass, "tf_weapon") != -1;
+	char ItemClassTrans[64];
+	bool bChanged = TranslateWeaponEntForClass(ItemClass, TF2_GetPlayerClass(client), ItemClassTrans, sizeof(ItemClassTrans));
+	PrintToServer("GiveItem %s changed %s", ItemClassTrans, bChanged ? "yes" : "no");
 	
-	TF2Items_SetClassname(TF2Item, ItemClass);
+	bool IsWeapon = StrContains(ItemClassTrans, "tf_weapon") != -1;
+	
+	TF2Items_SetClassname(TF2Item, ItemClassTrans);
 	TF2Items_SetItemIndex(TF2Item, DefIndex);
 	TF2Items_SetLevel(TF2Item, 100);
 
@@ -2261,7 +2264,7 @@ public void GiveItem(int client, int DefIndex, char[] ItemClass, int iAttribCoun
 
 	if(IsValidEntity(ItemEntity))
 	{
-		if(StrEqual(ItemClass, "tf_weapon_builder") || StrEqual(ItemClass, "tf_weapon_sapper"))
+		if(StrEqual(ItemClassTrans, "tf_weapon_builder") || StrEqual(ItemClassTrans, "tf_weapon_sapper"))
 		{
 			if(TF2_GetPlayerClass(client) == TFClass_Spy)
 			{
@@ -2288,17 +2291,97 @@ public void GiveItem(int client, int DefIndex, char[] ItemClass, int iAttribCoun
 			
 		if(bSetActive && IsWeapon)
 		{
-			FakeClientCommand(client, "use %s", ItemClass);
+			FakeClientCommand(client, "use %s", ItemClassTrans);
 			SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", ItemEntity);
 		}
 		
-		PrintToConsole(client, "Index %i | iDefIndex %i | ItemClass %s", ItemEntity, DefIndex, ItemClass);
+		PrintToConsole(client, "Index %i | iDefIndex %i | ItemClass %s", ItemEntity, DefIndex, ItemClassTrans);
 	}
 	else
 	{
 		LogError("Unable to GIVE item '%d' for %N. Skipping...", DefIndex, client);
 		return;
 	}
+}
+
+stock bool TranslateWeaponEntForClass(const char[] name, TFClassType class, char[] buffer, int maxlength)
+{
+	if (StrEqual(name, "tf_weapon_shotgun")) 
+	{
+		switch (class) 
+		{
+			case TFClass_Soldier:  {strcopy(buffer, maxlength, "tf_weapon_shotgun_soldier"); return true;}
+			case TFClass_Pyro:     {strcopy(buffer, maxlength, "tf_weapon_shotgun_pyro");    return true;}
+			case TFClass_Heavy:    {strcopy(buffer, maxlength, "tf_weapon_shotgun_hwg");     return true;}
+			case TFClass_Engineer: {strcopy(buffer, maxlength, "tf_weapon_shotgun_primary"); return true;}
+			default:               {strcopy(buffer, maxlength, "tf_weapon_shotgun_primary"); return true;}
+		}
+	}
+	
+	if (StrEqual(name, "tf_weapon_pistol")) 
+	{
+		switch (class) 
+		{
+			case TFClass_Scout:    {strcopy(buffer, maxlength, "tf_weapon_pistol_scout"); return true;}
+			case TFClass_Engineer: {strcopy(buffer, maxlength, "tf_weapon_pistol");       return true;}
+		}
+	}
+	
+	if (StrEqual(name, "tf_weapon_shovel") || StrEqual(name, "tf_weapon_bottle")) 
+	{
+		switch (class) 
+		{
+			case TFClass_Soldier: {strcopy(buffer, maxlength, "tf_weapon_shovel"); return true;}
+			case TFClass_DemoMan: {strcopy(buffer, maxlength, "tf_weapon_bottle"); return true;}
+		}
+	}
+	
+	if (StrEqual(name, "saxxy")) 
+	{
+		switch (class)
+		{
+			case TFClass_Scout:    {strcopy(buffer, maxlength, "tf_weapon_bat");     return true;}
+			case TFClass_Soldier:  {strcopy(buffer, maxlength, "tf_weapon_shovel");  return true;}
+			case TFClass_Pyro:     {strcopy(buffer, maxlength, "tf_weapon_fireaxe"); return true;}
+			case TFClass_DemoMan:  {strcopy(buffer, maxlength, "tf_weapon_bottle");  return true;}
+			case TFClass_Heavy:    {strcopy(buffer, maxlength, "tf_weapon_fireaxe"); return true;}
+			case TFClass_Engineer: {strcopy(buffer, maxlength, "tf_weapon_wrench");  return true;}
+			case TFClass_Medic:    {strcopy(buffer, maxlength, "tf_weapon_bonesaw"); return true;}
+			case TFClass_Sniper:   {strcopy(buffer, maxlength, "tf_weapon_club");    return true;}
+			case TFClass_Spy:      {strcopy(buffer, maxlength, "tf_weapon_knife");   return true;}
+		}
+	}
+	
+	if (StrEqual(name, "tf_weapon_throwable")) 
+	{
+		switch (class) 
+		{
+			case TFClass_Medic: {strcopy(buffer, maxlength, "tf_weapon_throwable_primary");   return true;}
+			default:            {strcopy(buffer, maxlength, "tf_weapon_throwable_secondary"); return true;}
+		}
+	}
+	
+	if (StrEqual(name, "tf_weapon_parachute")) 
+	{
+		switch (class) 
+		{
+			case TFClass_Soldier: {strcopy(buffer, maxlength, "tf_weapon_parachute_secondary"); return true;}
+			case TFClass_DemoMan: {strcopy(buffer, maxlength, "tf_weapon_parachute_primary");   return true;}
+		}
+	}
+	
+	if (StrEqual(name, "tf_weapon_revolver")) 
+	{
+		switch (class) 
+		{
+			case TFClass_Engineer: {strcopy(buffer, maxlength, "tf_weapon_revolver_secondary"); return true;}
+		}
+	}
+	
+	/* if not handled: return original entity name, not an empty string */
+	strcopy(buffer, maxlength, name);
+	
+	return false;
 }
 
 stock void Annotate(float flPos[3], int client, char[] strMsg, int iOffset = 0)
