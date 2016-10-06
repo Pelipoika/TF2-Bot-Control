@@ -629,13 +629,14 @@ public Action OnSpawnStartTouch(int iEntity, int iOther)
 	if(iTeam == view_as<int>(TFTeam_Blue) && iOther > 0 && iOther <= MaxClients && GetClientTeam(iOther) == iTeam && !IsFakeClient(iOther))
 	{
 		if(!TF2_IsPlayerInCondition(iOther, TFCond_UberchargedHidden))
-		{	
-			TF2_AddCondition(iOther, TFCond_UberchargedHidden);
-			TF2_AddCondition(iOther, TFCond_Ubercharged);
-			TF2_AddCondition(iOther, TFCond_UberchargeFading);
-			
+		{
 			g_flControlEndTime[iOther] = GetGameTime() + 35.0;
 		}
+	
+		TF2_AddCondition(iOther, TFCond_UberchargedHidden);
+		TF2_AddCondition(iOther, TFCond_Ubercharged);
+		TF2_AddCondition(iOther, TFCond_UberchargeFading);
+		
 	}
 }
 
