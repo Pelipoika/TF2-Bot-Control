@@ -5,10 +5,10 @@
 	{
 		"Signatures"
 		{
-			"CTFBot::LeaveSquad"
+			"CTFBot::LeaveSquad"	//"Squad leader is dead"
 			{
 				"library"	"server"
-				"windows"	"\x56\x8B\xF1\x8B\x8E\xC8\x24\x00\x00"
+				"windows"	"\x56\x8B\xF1\x8B\x8E\xE8\x24\x00\x00"
 				"linux"		"@_ZN6CTFBot10LeaveSquadEv"
 			}
 			"CTFPlayer::PlaySpecificSequence"
@@ -35,10 +35,10 @@
 				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x8B\x5D\x08\x57"
 				"linux"		"@_ZN6CTFBot10RealizeSpyEP9CTFPlayer"
 			}
-			"CTFBot::GetEventChangeAttributes"
+			"CTFBot::GetEventChangeAttributes"	//"ChangeBotAttributes: Failed to find eve"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x30\x26\x00\x00"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x30\x01\x00\x00\x53\x8B\x5D\x08\x57"
 				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
 			}
 			"CCaptureFlag::AddFollower"	//(CCaptureFlag *this, CTFBot *)
@@ -76,9 +76,8 @@
 		{
 			"CTFPlayer::EquipWearable"
 			{
-				"windows"	"427"
-				"linux"		"428"
-				"mac"		"428"
+				"windows"	"428"
+				"linux"		"429"
 			}
 			"CTFPlayer::ShouldGib"
 			{
@@ -87,8 +86,8 @@
 			}
 			"CTFBot::IsAllowedToPickUpFlag"
 			{
-				"windows"	"470"
-				"linux"		"471"
+				"windows"	"471"
+				"linux"		"472"
 			}
 			"CTFWeaponBase::GetMaxClip1"
 			{
@@ -102,8 +101,8 @@
 			}
 			"CTFPlayer::IsValidObserverTarget"
 			{
-				"windows"	"380"
-				"linux"		"381"
+				"windows"	"381"
+				"linux"		"382"
 			}
 			"m_nWeaponRestrict"	//m_nBotAttrs - 1*4
 			{
