@@ -106,23 +106,23 @@
 			}
 			"m_nWeaponRestrict"	//m_nBotAttrs - 1*4
 			{
-				"windows"	"340"
-				"linux"		"340"
+				"windows"	"372"
+				"linux"		"368"
 			}
-			"m_nBotAttrs"		//https://github.com/sigsegv-mvm/mvm-reversed/blob/508dc9459f54033a59207dab089c18285837b757/server/tf/bot/behavior/tf_bot_scenario_monitor.cpp#L135
+			"m_nBotAttrs"		//https://github.com/sigsegv-mvm/mvm-reversed/blob/508dc9459f54033a59207dab089c18285837b757/server/tf/bot/behavior/tf_bot_scenario_monitor.cpp#L135 "%3.2f: %s: Gametype is CP, but I can't"
 			{
-				"windows"	"344"
-				"linux"		"344"
+				"windows"	"376"
+				"linux"		"372"
 			}
 			"m_flAutoJumpMin"	//CTFBot::ShouldAutoJump
 			{
-				"windows"	"692"
-				"linux"		"692" 
+				"windows"	"724"
+				"linux"		"720" 
 			}
 			"m_flAutoJumpMax"	//CTFBot::ShouldAutoJump
 			{
-				"windows"	"696"
-				"linux"		"696"
+				"windows"	"728"
+				"linux"		"724"
 			}
 			"m_bMissionBot"
 			{
