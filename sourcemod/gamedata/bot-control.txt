@@ -44,7 +44,7 @@
 			"CCaptureFlag::AddFollower"	//(CCaptureFlag *this, CTFBot *)
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\x7D\x08\x8B\xD9\x85\xFF\x74\x2A\x8B\x07\x8B\xCF\xFF\x50\x08\x8B\x00\x89\x45\x08\xEB\x2A\xC7\x45\x08\xFF\xFF\xFF\xFF\x8D\x45\x08\x50\x8D\x8B\xA4\x06\x00\x00"
+				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\x7D\x08\x8B\xD9\x85\xFF\x74\x2A\x8B\x07\x8B\xCF\xFF\x50\x08\x8B\x00\x89\x45\x08\xEB\x2A\xC7\x45\x08\xFF\xFF\xFF\xFF\x8D\x45\x08\x50\x8D\x8B\xA8\x06\x00\x00"
 				"linux"		"@_ZN12CCaptureFlag11AddFollowerEP6CTFBot"
 			}
 			"CTFBot::HasTag"
@@ -77,32 +77,32 @@
 			"CTFPlayer::EquipWearable"
 			{
 				"windows"	"428"
-				"linux"		"429"
+				"linux"		"430"
 			}
 			"CTFPlayer::ShouldGib"
 			{
-				"windows"	"287"
-				"linux"		"288"
+				"windows"	"288"
+				"linux"		"289"
 			}
 			"CTFBot::IsAllowedToPickUpFlag"
 			{
 				"windows"	"471"
-				"linux"		"472"
-			}
-			"CTFWeaponBase::GetMaxClip1"
-			{
-				"windows"	"315"
-				"linux"		"321"
-			}
-			"CCaptureFlag::PickUp"
-			{
-				"windows"	"222"
-				"linux"		"260"
+				"linux"		"473"
 			}
 			"CTFPlayer::IsValidObserverTarget"
 			{
-				"windows"	"381"
-				"linux"		"382"
+				"windows"	"382"
+				"linux"		"383"
+			}
+			"CTFWeaponBase::GetMaxClip1"
+			{
+				"windows"	"316"
+				"linux"		"322"
+			}
+			"CCaptureFlag::PickUp"
+			{
+				"windows"	"223"
+				"linux"		"261"
 			}
 			"m_nWeaponRestrict"	//m_nBotAttrs - 1*4
 			{
