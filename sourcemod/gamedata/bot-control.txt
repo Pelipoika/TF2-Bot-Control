@@ -76,7 +76,7 @@
 		{
 			"CTFPlayer::EquipWearable"
 			{
-				"windows"	"428"
+				"windows"	"429"
 				"linux"		"430"
 			}
 			"CTFPlayer::ShouldGib"
@@ -86,7 +86,7 @@
 			}
 			"CTFBot::IsAllowedToPickUpFlag"
 			{
-				"windows"	"471"
+				"windows"	"472"
 				"linux"		"473"
 			}
 			"CTFPlayer::IsValidObserverTarget"
