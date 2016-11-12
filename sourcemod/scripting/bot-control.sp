@@ -97,7 +97,7 @@ Handle g_hSDKRemoveObject;
 //DHooks
 Handle g_hIsValidTarget;
 Handle g_hCTFPlayerShouldGib;
-Handle g_hCTFBotIsAllowedToPickupFlag;
+//Handle g_hCTFBotIsAllowedToPickupFlag;
 
 //Offsets
 int g_iOffsetWeaponRestrictions;
@@ -233,9 +233,9 @@ public void OnPluginStart()
 	g_hCTFPlayerShouldGib = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFPlayer_ShouldGib);
 	DHookAddParam(g_hCTFPlayerShouldGib, HookParamType_ObjectPtr, -1, DHookPass_ByRef);
 	
-	iOffset = GameConfGetOffset(hConf, "CTFBot::IsAllowedToPickUpFlag");
-	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::IsAllowedToPickUpFlag");
-	g_hCTFBotIsAllowedToPickupFlag = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFBot_IsAllowedToPickupFlag);
+//	iOffset = GameConfGetOffset(hConf, "CTFBot::IsAllowedToPickUpFlag");
+//	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::IsAllowedToPickUpFlag");
+//	g_hCTFBotIsAllowedToPickupFlag = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFBot_IsAllowedToPickupFlag);
 
 	iOffset = GameConfGetOffset(hConf, "CTFPlayer::IsValidObserverTarget");	
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFPlayer::IsValidObserverTarget");
@@ -291,6 +291,8 @@ public void TF2_OnWaitingForPlayersEnd()
 
 public Action Command_ToggleRandomPicker(int client, int args)
 {
+	//BUG: Can't toggle off with 4 spectators
+	
 	if(client > 0 && client <= MaxClients && IsClientInGame(client))
 	{
 		int iRobotCount = 0;
@@ -366,7 +368,7 @@ public void OnClientPutInServer(int client)
 	
 	DHookEntity(g_hCTFPlayerShouldGib,          true, client);
 	DHookEntity(g_hIsValidTarget,               true, client);
-	DHookEntity(g_hCTFBotIsAllowedToPickupFlag, true, client);
+//	DHookEntity(g_hCTFBotIsAllowedToPickupFlag, true, client);
 	
 	SDKHook(client, SDKHook_SetTransmit, Hook_SpyTransmit);
 }
@@ -380,7 +382,7 @@ public MRESReturn IsValidTarget(int pThis, Handle hReturn, Handle hParams)
 		{
 			if(g_bIsControlled[iTarget])
 			{
-				DHookSetReturn(hReturn, false);			
+				DHookSetReturn(hReturn, false);	
 				return MRES_Supercede;
 			}
 		}
@@ -415,7 +417,7 @@ public MRESReturn CTFPlayer_ShouldGib(int pThis, Handle hReturn, Handle hParams)
 	
 	return MRES_Ignored;
 }
-
+/*
 public MRESReturn CTFBot_IsAllowedToPickupFlag(int pThis, Handle hReturn, Handle hParams)
 {
 	if(!IsPlayerAlive(pThis) || IsFakeClient(pThis))
@@ -428,7 +430,7 @@ public MRESReturn CTFBot_IsAllowedToPickupFlag(int pThis, Handle hReturn, Handle
 	}
 
 	return MRES_Ignored;
-}
+}*/
 
 public void OnClientDisconnect(int client)
 {
@@ -518,11 +520,24 @@ public Action Event_SappedObject(Event event, const char[] name, bool dontBroadc
 
 public Action OnFlagTouch(int iEntity, int iOther)
 {
-	if(iOther > 0 && iOther <= MaxClients && IsClientInGame(iOther) && !IsFakeClient(iOther) && IsPlayerAlive(iOther) 
-	&& g_bControllingBot[iOther] && !g_bIsGateBot[iOther] && !g_bIsSentryBuster[iOther] && !g_bHasBomb[iOther] && TF2Attrib_GetByName(iOther, "cannot pick up intelligence") == Address_Null)
-	{
-	//	TF2_PickupFlag(iOther, iEntity);
-	}
+	if(GetEntPropEnt(iEntity, Prop_Data, "m_hMoveParent") != -1)
+		return Plugin_Handled;
+
+	if(iOther <= 0 || iOther > MaxClients || !IsClientInGame(iOther))
+		return Plugin_Handled;
+
+	if(IsFakeClient(iOther) || !IsPlayerAlive(iOther))
+		return Plugin_Handled;
+	
+	if(!g_bControllingBot[iOther] || g_bIsGateBot[iOther] || g_bIsSentryBuster[iOther] || g_bHasBomb[iOther])
+		return Plugin_Handled;
+	
+	if(TF2Attrib_GetByName(iOther, "cannot pick up intelligence") != Address_Null)
+		return Plugin_Handled;
+	
+	TF2_PickupFlag(iOther, iEntity);
+	
+	return Plugin_Continue;
 }
 
 public Action OnHatchStartTouch(int iEntity, int client)
@@ -1402,11 +1417,21 @@ public Action Listener_Jointeam(int client, char[] command, int args)
 public Action Listener_Block(int client, char[] command, int args) 
 {
 	if(IsClientInGame(client) && TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetClientTeam(client) != TFTeam_Spectator)
-	{
-		TF2_ChangeClientTeam(client, TFTeam_Spectator);
-		TF2_RestoreBot(client);
-		
-		g_flCooldownEndTime[client] = GetGameTime() + 10.0;
+	{		
+		if(!g_bIsSentryBuster[client])
+		{
+			TF2_ChangeClientTeam(client, TFTeam_Spectator);
+			TF2_RestoreBot(client);
+			
+			g_flCooldownEndTime[client] = GetGameTime() + 10.0;
+		}
+		else if(g_bIsSentryBuster[client] && GetEntPropEnt(client, Prop_Data, "m_hGroundEntity") != -1)
+		{
+			TF2_ChangeClientTeam(client, TFTeam_Spectator);
+			TF2_RestoreBot(client);
+			
+			g_flCooldownEndTime[client] = GetGameTime() + 10.0;
+		}
 	}
 	
 	return Plugin_Continue;
@@ -1613,7 +1638,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	
 	//Get & Set some props
 	SetEntPropFloat(client, Prop_Send, "m_flRageMeter",	GetEntPropFloat(iTarget, Prop_Send, "m_flRageMeter"));
-	SetEntProp(client, Prop_Send, "m_bRageDraining",	GetEntProp(iTarget, Prop_Send, "m_bRageDraining"));
+//	SetEntProp(client, Prop_Send, "m_bRageDraining",	GetEntProp(iTarget, Prop_Send, "m_bRageDraining"));
 	SetEntProp(client, Prop_Send, "m_bIsABot",			GetEntProp(iTarget, Prop_Send, "m_bIsABot"));
 	SetEntProp(client, Prop_Send, "m_nBotSkill",		GetEntProp(iTarget, Prop_Send, "m_nBotSkill"));
 	SetEntProp(client, Prop_Send, "m_bIsMiniBoss",		GetEntProp(iTarget, Prop_Send, "m_bIsMiniBoss"));
@@ -2182,6 +2207,9 @@ stock void SetBuilder(int obj, int client)
 	SetEntPropEnt(obj, Prop_Send, "m_hBuilder", -1);
 	AcceptEntityInput(obj, "SetBuilder", client);
 	SetEntPropEnt(obj, Prop_Send, "m_hBuilder", client);
+	
+	SetVariantString("3");
+	AcceptEntityInput(obj, "SetTeam");
 }
 
 stock bool IsValidBuilding(int iBuilding)
