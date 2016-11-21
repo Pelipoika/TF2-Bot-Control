@@ -71,6 +71,11 @@ enum WeaponRestriction
 	SECONDARYONLY = (1 << 2),
 };
 
+#define	MAX_EDICT_BITS			11			// # of bits needed to represent max edicts
+#define NUM_ENT_ENTRY_BITS		(MAX_EDICT_BITS + 1)
+#define NUM_ENT_ENTRIES			(1 << NUM_ENT_ENTRY_BITS)
+#define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
+
 #define BUSTER_SND_LOOP			"mvm/sentrybuster/mvm_sentrybuster_loop.wav"
 #define GIANTSCOUT_SND_LOOP		"mvm/giant_scout/giant_scout_loop.wav"
 #define GIANTSOLDIER_SND_LOOP	"mvm/giant_soldier/giant_soldier_loop.wav"
@@ -1785,10 +1790,13 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 		Address addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (2 * 4));
 		int value = LoadFromAddress(addr, NumberType_Int32);
 		
+		addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (3 * 4));
+		int provider = LoadFromAddress(addr, NumberType_Int32) & ENT_ENTRY_MASK;
+		
 		//Only mirror conditions that don't last "forever"
 		if(value > 0.0)
 		{
-			TF2_AddCondition(client, view_as<TFCond>(cond), view_as<float>(value));
+			TF2_AddCondition(client, view_as<TFCond>(cond), view_as<float>(value), (provider > 0 && provider <= MaxClients) ? provider : 0);
 		}
 	}
 	
