@@ -1602,10 +1602,9 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Set up player
 	TF2_SetFakeClient(client, true);
 	TF2_ChangeClientTeam(client, TF2_GetClientTeam(iTarget));
-	TF2_RespawnPlayer(client);
 	TF2_SetPlayerClass(client, TF2_GetPlayerClass(iTarget));
-	TF2_RegeneratePlayer(client);
 	TF2_RespawnPlayer(client);
+	TF2_RegeneratePlayer(client);
 	TF2_RemoveAllWeapons(client);
 	TF2_RemoveAllWearables(client);
 	TF2Attrib_RemoveAll(client);
@@ -2133,6 +2132,8 @@ stock void TF2_DetonateBuster(int client)
 		
 		SetEntProp(iBot, Prop_Send, "m_iHealth", 1);
 		SetEntPropEnt(client, Prop_Send, "m_hObserverTarget", iBot);
+		
+		g_bIsControlled[iBot] = false;	//Let's the user spectate the busters detonation
 	}
 }
 
