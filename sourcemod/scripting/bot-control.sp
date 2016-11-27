@@ -296,8 +296,6 @@ public void TF2_OnWaitingForPlayersEnd()
 
 public Action Command_ToggleRandomPicker(int client, int args)
 {
-	//BUG: Can't toggle off with 4 spectators
-	
 	if(client > 0 && client <= MaxClients && IsClientInGame(client))
 	{
 		int iRobotCount = 0;
@@ -307,21 +305,21 @@ public Action Command_ToggleRandomPicker(int client, int args)
 				if(TF2_GetClientTeam(i) == TFTeam_Blue || TF2_GetClientTeam(i) == TFTeam_Spectator)
 					iRobotCount++;
 		
+		if(!g_bRandomlyChooseBot[client])
+		{			
+			CPrintToChat(client, "{arcana}We will now automatically choose a bot for you when one is available! Type !randombot again to stop playing as random bots");
+			g_bRandomlyChooseBot[client] = true;
+		}
+		else
+		{
+			CPrintToChat(client, "{arcana}Random bot choosing is now {red}OFF");
+			g_bRandomlyChooseBot[client] = false;
+		}
+		
 		if(iRobotCount < 4 || CheckCommandAccess(client, "sm_admin", ADMFLAG_ROOT, true))
 		{
-			if(!g_bRandomlyChooseBot[client])
-			{
-				if(TF2_GetClientTeam(client) != TFTeam_Spectator && TF2_GetClientTeam(client) != TFTeam_Blue)
-					TF2_ChangeClientTeam(client, TFTeam_Spectator);
-				
-				CPrintToChat(client, "{arcana}We will now automatically choose a bot for you when one is available! Type !randombot again to stop playing as random bots");
-				g_bRandomlyChooseBot[client] = true;
-			}
-			else
-			{
-				CPrintToChat(client, "{arcana}Random bot choosing is now {red}OFF");
-				g_bRandomlyChooseBot[client] = false;
-			}
+			if(TF2_GetClientTeam(client) != TFTeam_Spectator && TF2_GetClientTeam(client) != TFTeam_Blue)
+				TF2_ChangeClientTeam(client, TFTeam_Spectator);
 		}
 		else
 			CPrintToChat(client, "{red}Robots are full.");
@@ -2141,7 +2139,7 @@ stock void TF2_DetonateBuster(int client)
 		SetEntProp(iBot, Prop_Send, "m_iHealth", 1);
 		SetEntPropEnt(client, Prop_Send, "m_hObserverTarget", iBot);
 		
-		g_bIsControlled[iBot] = false;	//Let's the user spectate the busters detonation
+	//	g_bIsControlled[iBot] = false;	//Let's the user spectate the busters detonation, was a terrible idea.
 	}
 }
 
