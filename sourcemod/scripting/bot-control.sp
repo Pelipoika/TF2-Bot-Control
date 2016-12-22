@@ -225,14 +225,14 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);	//CCaptureFlag
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//silent pickup? or maybe it doesnt exist im not sure.
 	if ((g_hSDKPickup = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
-
+	
 	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
 	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetBotAttribs += GameConfGetOffset(hConf, "m_nBotAttrs");	
 	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMin += GameConfGetOffset(hConf, "m_flAutoJumpMin");
 	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMax += GameConfGetOffset(hConf, "m_flAutoJumpMax");
 	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))			g_iOffsetMissionBot -= GameConfGetOffset(hConf, "m_bMissionBot");
 	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))			g_iOffsetSupportLimited -= GameConfGetOffset(hConf, "m_bSupportLimited");
-
+	
 	int iOffset = GameConfGetOffset(hConf, "CTFPlayer::ShouldGib");
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::ShouldGib");
 	g_hCTFPlayerShouldGib = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFPlayer_ShouldGib);
@@ -319,7 +319,10 @@ public Action Command_ToggleRandomPicker(int client, int args)
 		if(iRobotCount < 4 || CheckCommandAccess(client, "sm_admin", ADMFLAG_ROOT, true))
 		{
 			if(TF2_GetClientTeam(client) != TFTeam_Spectator && TF2_GetClientTeam(client) != TFTeam_Blue)
+			{
 				TF2_ChangeClientTeam(client, TFTeam_Spectator);
+				TF2_RespawnPlayer(client);
+			}
 		}
 		else
 			CPrintToChat(client, "{red}Robots are full.");
@@ -840,6 +843,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					g_bRandomlyChooseBot[client] = false;
 					
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
+					TF2_RespawnPlayer(client);
 					TF2_RestoreBot(client);
 					
 					g_flCooldownEndTime[client] = GetGameTime() + 30.0;
@@ -874,6 +878,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					TF2_DetonateBuster(client);					
 					TF2_ClearBot(client);
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
+					TF2_RespawnPlayer(client);
 				}
 				
 				for(int i = 1; i <= MaxClients; i++)
@@ -890,6 +895,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							TF2_DetonateBuster(client);							
 							TF2_ClearBot(client);
 							TF2_ChangeClientTeam(client, TFTeam_Spectator);
+							TF2_RespawnPlayer(client);
 						}
 					}
 				}
@@ -1017,7 +1023,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						if(GetEntProp(i, Prop_Data, "m_takedamage") != 0)
 						{
 							float flSpawnedAgo = GetGameTime() - g_flSpawnTime[i];
-							if(flSpawnedAgo >= 1.5) //Allow the bots some time to spawn
+							if(TF2_GetPlayerClass(i) != TFClass_Spy && flSpawnedAgo >= 1.5) //Allow the bots some time to spawn
+							{
+								iPlayerarray[iPlayercount] = i;
+								iPlayercount++;
+							}
+							else if(TF2_GetPlayerClass(i) == TFClass_Spy && flSpawnedAgo >= 5.0) //Spies need extra time to teleport
 							{
 								iPlayerarray[iPlayercount] = i;
 								iPlayercount++;
@@ -1147,6 +1158,7 @@ public Action Event_ResetBots(Event event, const char[] name, bool dontBroadcast
 				{
 					TF2_ClearBot(client, true);
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
+					TF2_RespawnPlayer(client);
 				}
 			}
 			
@@ -1171,6 +1183,7 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 			{
 				TF2_RestoreBot(client);
 				TF2_ChangeClientTeam(client, TFTeam_Spectator);
+				TF2_RespawnPlayer(client);
 
 				g_bSkipInventory[client] = false;
 			}
@@ -1234,6 +1247,7 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 				TF2_DetonateBuster(client);
 				TF2_ClearBot(client);
 				TF2_ChangeClientTeam(client, TFTeam_Spectator);
+				TF2_RespawnPlayer(client);
 			}
 			else
 			{
@@ -1424,6 +1438,7 @@ public Action Listener_Block(int client, char[] command, int args)
 		if(!g_bIsSentryBuster[client])
 		{
 			TF2_ChangeClientTeam(client, TFTeam_Spectator);
+			TF2_RespawnPlayer(client);
 			TF2_RestoreBot(client);
 			
 			g_flCooldownEndTime[client] = GetGameTime() + 10.0;
@@ -1431,6 +1446,7 @@ public Action Listener_Block(int client, char[] command, int args)
 		else if(g_bIsSentryBuster[client] && GetEntPropEnt(client, Prop_Data, "m_hGroundEntity") != -1)
 		{
 			TF2_ChangeClientTeam(client, TFTeam_Spectator);
+			TF2_RespawnPlayer(client);
 			TF2_RestoreBot(client);
 			
 			g_flCooldownEndTime[client] = GetGameTime() + 10.0;
@@ -2051,7 +2067,11 @@ stock bool TF2_ObservedIsValidClient(int observer)
 				if(GetEntProp(iObserved, Prop_Data, "m_takedamage") != 0)
 				{
 					float flSpawnedAgo = GetGameTime() - g_flSpawnTime[iObserved];
-					if(flSpawnedAgo >= 1.5)
+					if(TF2_GetPlayerClass(iObserved) != TFClass_Spy && flSpawnedAgo >= 1.5) //Allow the bots some time to spawn
+					{
+						return true;
+					}
+					else if(TF2_GetPlayerClass(iObserved) == TFClass_Spy && flSpawnedAgo >= 5.0) //Spies need extra time to teleport
 					{
 						return true;
 					}
@@ -2076,11 +2096,6 @@ stock void TF2_ObservedIsNotValidReason(int observer, char[] strBuffer, int iMax
 			else if(TF2_IsPlayerInCondition(iObserved, TFCond_MVMBotRadiowave))	Format(strBuffer, iMaxLenght, "this bot is stunned");
 			else if(TF2_IsPlayerInCondition(iObserved, TFCond_Taunting))		Format(strBuffer, iMaxLenght, "this bot is taunting");
 			else if(GetEntProp(iObserved, Prop_Data, "m_takedamage") == 0)		Format(strBuffer, iMaxLenght, "this bot is about to explode");
-			else
-			{
-				float flSpawnedAgo = GetGameTime() - g_flSpawnTime[iObserved];
-				if(flSpawnedAgo >= 1.5)	Format(strBuffer, iMaxLenght, "this bot is not ready yet");
-			}
 		}
 	}
 }
