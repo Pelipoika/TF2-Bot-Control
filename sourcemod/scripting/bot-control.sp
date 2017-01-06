@@ -88,6 +88,7 @@ enum WeaponRestriction
 #define SOUND_TELEPORT_DELIVER	")mvm/mvm_tele_deliver.wav"
 
 Handle g_hHudInfo;
+Handle g_hHudReload;
 
 //SDKCalls
 Handle g_hSdkEquipWearable;
@@ -98,6 +99,7 @@ Handle g_hSDKSetMission;
 Handle g_hSDKGetMaxClip;
 Handle g_hSDKPickup;
 Handle g_hSDKRemoveObject;
+Handle g_hSDKWeapon_Detach;
 
 //DHooks
 Handle g_hIsValidTarget;
@@ -219,6 +221,13 @@ public void OnPluginStart()
 	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);	//Clip
 	if ((g_hSDKGetMaxClip = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFWeaponBase::GetMaxClip1 offset!");
 	
+	//This call is in removing a weapon properly without weird side effects
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CBaseCombatCharacter::Weapon_Detach");
+	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);	//pEntity
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);			//bDidRemove
+	if ((g_hSDKWeapon_Detach = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CBaseCombatCharacter::Weapon_Detach signature!");
+	
 	//This call forces a player to pickup the intel
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CCaptureFlag::PickUp");
@@ -255,6 +264,7 @@ public void OnPluginStart()
 	delete hConf;
 	
 	g_hHudInfo = CreateHudSynchronizer();
+	g_hHudReload = CreateHudSynchronizer();
 	
 	SteamWorks_SetGameDescription(":: Bot Control ::");
 
@@ -802,7 +812,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					g_bReloadingBarrage[client] = true;
 					
 					SetHudTextParams(-1.0, -0.65, 0.75, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
-					ShowHudText(client, -1, "RELOADING BARRAGE!");
+					ShowSyncHudText(client, g_hHudReload, "RELOADING BARRAGE!");
 				}
 				else if(g_bReloadingBarrage[client])
 				{
@@ -811,15 +821,20 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					if(iClip1 < iMaxClip1 && buttons & IN_ATTACK)
 					{
 						SetHudTextParams(-1.0, -0.65, 0.25, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
-						ShowHudText(client, -1, "CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON");
-
+						ShowSyncHudText(client, g_hHudReload, "CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON");
+						
 						SetEntPropFloat(iActiveWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.1);
+					}
+					else
+					{
+						SetHudTextParams(-1.0, -0.65, 0.25, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
+						ShowSyncHudText(client, g_hHudReload, "RELOADING...");
 					}
 					
 					if(iClip1 >= iMaxClip1)
 					{
 						SetHudTextParams(-1.0, -0.65, 1.75, 100, 255, 100, 255, 0, 0.0, 0.0, 0.0);
-						ShowHudText(client, -1, "READY TO FIRE!");
+						ShowSyncHudText(client, g_hHudReload,  "READY TO FIRE!");
 					
 						g_bReloadingBarrage[client] = false;
 					}
@@ -1624,7 +1639,6 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	TF2_SetPlayerClass(client, TF2_GetPlayerClass(iTarget));
 	TF2_RespawnPlayer(client);
 	TF2_RegeneratePlayer(client);
-	TF2_RemoveAllWeapons(client);
 	TF2_RemoveAllWearables(client);
 	TF2Attrib_RemoveAll(client);
 	TF2Attrib_ClearCache(client);
@@ -1937,6 +1951,16 @@ stock void TF2_MirrorItems(int iTarget, int client)
 
 stock void TF2_RemoveAllWearables(int client)
 {
+	for (int slot = 0; slot <= 5; slot++)
+	{
+		int weaponIndex;
+		while ((weaponIndex = GetPlayerWeaponSlot(client, slot)) != -1)	//idk what this is but SM does it so it must be important
+		{
+			SDKCall(g_hSDKWeapon_Detach, client, weaponIndex);
+			AcceptEntityInput(weaponIndex, "Kill");
+		}
+	}
+	
 	int wearable = -1;
 	while ((wearable = FindEntityByClassname(wearable, "tf_wearable*")) != -1)
 		if (client == GetEntPropEnt(wearable, Prop_Data, "m_hOwnerEntity"))

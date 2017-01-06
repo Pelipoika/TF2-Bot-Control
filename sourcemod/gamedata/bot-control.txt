@@ -65,6 +65,12 @@
 				"windows"	"\x55\x8B\xEC\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x4C\x25\x00\x00"
 				"linux"		"@_ZN6CTFBot9RemoveTagEPKc"
 			}
+			"CBaseCombatCharacter::Weapon_Detach"	//(CTFPlayer player, weapon) xref from "CTFBotSpawner::AddItemToBot: Invalid it"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x51\x53\x8B\x1D\x2A\x2A\x2A\x2A\x8B\xC1"
+				"linux"		"@_ZN20CBaseCombatCharacter13Weapon_DetachEP17CBaseCombatWeapon"
+			}
 			"DispatchParticleEffect"
 			{
 				"library"	"server"
