@@ -688,9 +688,19 @@ public Action OnSpawnEndTouch(int iEntity, int iOther)
 
 public void TF2_OnConditionAdded(int client, TFCond cond)
 {
+	if(IsFakeClient(client))
+		return;
+
 	if(cond == view_as<TFCond>(114))
 	{
 		TF2_RemoveCondition(client, view_as<TFCond>(114));
+	}
+	
+	//Don't stun miniboss players
+	if(cond == TFCond_MVMBotRadiowave && (TF2_IsGiant(client) || g_bIsSentryBuster[client]))
+	{
+		TF2_RemoveCondition(client, TFCond_MVMBotRadiowave);
+		TF2_RemoveCondition(client, view_as<TFCond>(15));
 	}
 }
 
@@ -888,7 +898,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				if(iMelee > MaxClients) 
 					SetEntPropFloat(iMelee, Prop_Send, "m_flNextPrimaryAttack", 999999.0);
 
-				if(buttons & IN_ATTACK || TF2_IsPlayerInCondition(client, TFCond_Taunting))
+				//Detonate buster if the player is pressing M1 or taunting
+				//Don't detonate buster if client is holding M1 and M2 at same time
+				if(buttons & IN_ATTACK || TF2_IsPlayerInCondition(client, TFCond_Taunting) && (!(buttons & IN_ATTACK) && (!(buttons & IN_ATTACK2))))
 				{
 					TF2_DetonateBuster(client);					
 					TF2_ClearBot(client);
