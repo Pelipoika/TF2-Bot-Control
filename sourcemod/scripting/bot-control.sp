@@ -1686,6 +1686,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	SetEntProp(client, Prop_Send, "m_bIsABot",			GetEntProp(iTarget, Prop_Send, "m_bIsABot"));
 	SetEntProp(client, Prop_Send, "m_nBotSkill",		GetEntProp(iTarget, Prop_Send, "m_nBotSkill"));
 	SetEntProp(client, Prop_Send, "m_bIsMiniBoss",		GetEntProp(iTarget, Prop_Send, "m_bIsMiniBoss"));
+	SetEntProp(client, Prop_Data, "m_bloodColor", 		GetEntProp(iTarget, Prop_Data, "m_bloodColor"));
 	
 	//Med bot fix
 	if(GetEntProp(iTarget, Prop_Send, "m_nNumHealers") > 0)
