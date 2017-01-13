@@ -551,10 +551,7 @@ void Frame_SentryVision_Create(int iRef)
 			SetEntityRenderColor(iGlow, 0, 0, 0, 0);
 			SetEntProp(iGlow, Prop_Send, "m_bGlowEnabled", true);
 			SetEntPropFloat(iGlow, Prop_Send, "m_flModelScale", flModelScale);
-
-			int team = GetClientTeam(iSentry);
-			SetEntProp(iGlow, Prop_Send, "m_iTeamNum", team);
-
+			
 			int iFlags = GetEntProp(iGlow, Prop_Send, "m_fEffects");
 			SetEntProp(iGlow, Prop_Send, "m_fEffects", iFlags|EF_BONEMERGE|EF_NOSHADOW|EF_NORECEIVESHADOW);
 
