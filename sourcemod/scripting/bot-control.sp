@@ -243,11 +243,11 @@ public void OnPluginStart()
 	if ((g_hSDKPickup = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 	
 	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
-	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetBotAttribs += GameConfGetOffset(hConf, "m_nBotAttrs");	
-	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMin += GameConfGetOffset(hConf, "m_flAutoJumpMin");
-	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMax += GameConfGetOffset(hConf, "m_flAutoJumpMax");
-	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))			g_iOffsetMissionBot -= GameConfGetOffset(hConf, "m_bMissionBot");
-	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))			g_iOffsetSupportLimited -= GameConfGetOffset(hConf, "m_bSupportLimited");
+	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetBotAttribs         += GameConfGetOffset(hConf, "m_nBotAttrs");	
+	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMin        += GameConfGetOffset(hConf, "m_flAutoJumpMin");
+	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMax        += GameConfGetOffset(hConf, "m_flAutoJumpMax");
+	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))			g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
+	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))			g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
 	
 	int iOffset = GameConfGetOffset(hConf, "CTFPlayer::ShouldGib");
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::ShouldGib");
@@ -1203,7 +1203,7 @@ public Action Event_ResetBots(Event event, const char[] name, bool dontBroadcast
 
 float flLastTeleSoundTime;
 
-public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	
@@ -1223,8 +1223,14 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 			}
 		}
 		
-		if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) != TFClass_Spy && IsFakeClient(client))
-		{
+		if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) != TFClass_Spy)
+		{		
+			//Might need to happen even later
+			SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
+			
+			if(IsFakeClient(client))
+				return;
+			
 			int iBotAttrs = GetEntData(client, g_iOffsetBotAttribs);
 			if(!(iBotAttrs & view_as<int>(TELEPORTTOHINT)))
 			{	
@@ -1618,8 +1624,6 @@ stock void TF2_ClearBot(int client, bool bKill = false)
 	SetVariantString("");
 	AcceptEntityInput(client, "SetCustomModel");
 	
-	SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
-	
 	TF2Attrib_RemoveAll(client);
 	TF2Attrib_ClearCache(client);
 	
@@ -1674,8 +1678,6 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	SetVariantString(strModel);
 	AcceptEntityInput(client, "SetCustomModel");
 	SetEntProp(client, Prop_Send, "m_bUseClassAnimations", 1);
-	
-	SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
 
 	//Set ModelScale
 	char strScale[8];
