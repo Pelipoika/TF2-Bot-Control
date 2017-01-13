@@ -100,7 +100,7 @@ Handle g_hSDKGetMaxClip;
 Handle g_hSDKPickup;
 Handle g_hSDKRemoveObject;
 Handle g_hSDKWeapon_Detach;
-Handle g_hSDKUpdateModel;
+Handle g_hSDKUpdateSkin;
 
 //DHooks
 Handle g_hIsValidTarget;
@@ -201,8 +201,9 @@ public void OnPluginStart()
 
 	//This call is used to fix valves shit code
 	StartPrepSDKCall(SDKCall_Player);
-	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::UpdateModel");
-	if ((g_hSDKUpdateModel = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed To create SDKCall for CTFPlayer::UpdateModel signature");
+	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::UpdateSkin");
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	if ((g_hSDKUpdateSkin = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed To create SDKCall for CTFPlayer::UpdateSkin signature");
 
 	//This call is used to make sentry busters behave nicely
 	StartPrepSDKCall(SDKCall_Player); 
@@ -1617,7 +1618,7 @@ stock void TF2_ClearBot(int client, bool bKill = false)
 	SetVariantString("");
 	AcceptEntityInput(client, "SetCustomModel");
 	
-	SDKCall(g_hSDKUpdateModel, client);
+	SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
 	
 	TF2Attrib_RemoveAll(client);
 	TF2Attrib_ClearCache(client);
@@ -1674,7 +1675,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	AcceptEntityInput(client, "SetCustomModel");
 	SetEntProp(client, Prop_Send, "m_bUseClassAnimations", 1);
 	
-	SDKCall(g_hSDKUpdateModel, client);
+	SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
 
 	//Set ModelScale
 	char strScale[8];

@@ -23,11 +23,11 @@
 				"windows"	"\x55\x8B\xEC\x8B\xD1\x56\x8B\xB2\xD0\x20\x00\x00"
 				"linux"		"@_ZN9CTFPlayer12RemoveObjectEP11CBaseObject"
 			}
-			"CTFPlayer::UpdateModel"
+			"CTFPlayer::UpdateSkin"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x18\x56\x57\x8B\xF9\x8B\x37"
-				"linux"		"@_ZN9CTFPlayer11UpdateModelEv"
+				"windows"	"\x55\x8B\xEC\x53\x56\x8B\x75\x08\x8B\xD9\x83\xC6\xFE"
+				"linux"		"@_ZN9CTFPlayer10UpdateSkinEi"
 			}
 			"CTFBot::SetMission"
 			{
