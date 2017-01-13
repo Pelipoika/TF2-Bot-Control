@@ -71,6 +71,21 @@ enum WeaponRestriction
 	SECONDARYONLY = (1 << 2),
 };
 
+#define EF_BONEMERGE			0x001 	// Performs bone merge on client side
+#define	EF_BRIGHTLIGHT 			0x002	// DLIGHT centered at entity origin
+#define	EF_DIMLIGHT 			0x004	// player flashlight
+#define	EF_NOINTERP				0x008	// don't interpolate the next frame
+#define	EF_NOSHADOW				0x010	// Don't cast no shadow
+#define	EF_NODRAW				0x020	// don't draw entity
+#define	EF_NORECEIVESHADOW		0x040	// Don't receive no shadow
+#define	EF_BONEMERGE_FASTCULL	0x080	// For use with EF_BONEMERGE. If this is set, then it places this ent's origin at its
+										// parent and uses the parent's bbox + the max extents of the aiment.
+										// Otherwise, it sets up the parent's bones every frame to figure out where to place
+										// the aiment, which is inefficient because it'll setup the parent's bones even if
+										// the parent is not in the PVS.
+#define	EF_ITEM_BLINK			0x100	// blink an item so that the user notices it.
+#define	EF_PARENT_ANIMATES		0x200	// always assume that the parent entity is animating
+
 #define	MAX_EDICT_BITS			11			// # of bits needed to represent max edicts
 #define NUM_ENT_ENTRY_BITS		(MAX_EDICT_BITS + 1)
 #define NUM_ENT_ENTRIES			(1 << NUM_ENT_ENTRY_BITS)
@@ -498,6 +513,10 @@ public void OnEntityCreated(int entity, const char[] classname)
 		SDKHook(entity, SDKHook_SetTransmit, Hook_TeleporterTransmit);
 		SDKHook(entity, SDKHook_OnTakeDamage, Hook_TeleporterTakeDamage);
 	}
+	else if(StrEqual(classname, "obj_sentrygun"))
+	{
+		RequestFrame(Frame_SentryVision_Create, EntIndexToEntRef(entity));
+	}
 	
 	if(g_bIsMannhattan)
 	{
@@ -507,6 +526,89 @@ public void OnEntityCreated(int entity, const char[] classname)
 			SDKHook(entity, SDKHook_SpawnPost, OnSpawnPost);
 		}
 	}
+}
+
+void Frame_SentryVision_Create(int iRef)
+{
+	int iSentry = EntRefToEntIndex(iRef);
+	if (iSentry > MaxClients && view_as<TFTeam>(GetEntProp(iSentry, Prop_Send, "m_iTeamNum")) == TFTeam_Red)
+	{
+		//Create sentry-vision glow
+		int iGlow = CreateEntityByName("tf_taunt_prop");
+		if(iGlow > MaxClients)
+		{
+			float flModelScale = GetEntPropFloat(iSentry, Prop_Send, "m_flModelScale");
+			SetEntProp(iGlow, Prop_Send, "m_nModelIndex", GetEntProp(iSentry, Prop_Send, "m_nModelIndex"));
+
+			char model[PLATFORM_MAX_PATH];
+			GetEntPropString(iSentry, Prop_Data, "m_ModelName", model, sizeof(model));
+			SetEntityModel(iGlow, model);
+
+			DispatchSpawn(iGlow);
+			ActivateEntity(iGlow);
+
+			SetEntityRenderMode(iGlow, RENDER_TRANSCOLOR);
+			SetEntityRenderColor(iGlow, 0, 0, 0, 0);
+			SetEntProp(iGlow, Prop_Send, "m_bGlowEnabled", true);
+			SetEntPropFloat(iGlow, Prop_Send, "m_flModelScale", flModelScale);
+
+			int team = GetClientTeam(iSentry);
+			SetEntProp(iGlow, Prop_Send, "m_iTeamNum", team);
+
+			int iFlags = GetEntProp(iGlow, Prop_Send, "m_fEffects");
+			SetEntProp(iGlow, Prop_Send, "m_fEffects", iFlags|EF_BONEMERGE|EF_NOSHADOW|EF_NORECEIVESHADOW);
+
+			SetVariantString("!activator");
+			AcceptEntityInput(iGlow, "SetParent", iSentry);
+			
+			SDKHook(iGlow, SDKHook_SetTransmit, SentryVision_OnThink);
+		}
+	}
+}
+
+public Action SentryVision_OnThink(int iSentryGlow, int iClient)
+{
+	//Who's my parent?
+	int iParent = GetEntPropEnt(iSentryGlow, Prop_Send, "moveparent");
+	if (iParent > MaxClients)//Safe check to know if I'm parented to the sentry and NOT carried! We don't want to put the glow on the blueprint!
+	{
+		bool bCarried = (GetEntProp(iSentryGlow, Prop_Send, "m_bCarried") || GetEntProp(iSentryGlow, Prop_Send, "m_bPlacing"));
+		if (bCarried)//I'm parented, set my parent to the engie!
+			iParent = GetEntPropEnt(iSentryGlow, Prop_Send, "m_hOwnerEntity");
+	}
+	//Keep my model and parent infos up to date.
+	if (0 < iParent <= MaxClients || iParent > MaxClients)
+	{
+		if (GetEntProp(iSentryGlow, Prop_Send, "m_nModelIndex") != GetEntProp(iParent, Prop_Send, "m_nModelIndex"))
+		{
+			int iOldParent = GetEntPropEnt(iSentryGlow, Prop_Send, "moveparent");
+			
+			if (iParent != iOldParent)
+			{
+				//Unparent me from my old parent.
+				AcceptEntityInput(iSentryGlow,"ClearParent");
+				//Parent me to the new entity.
+				SetVariantString("!activator");
+				AcceptEntityInput(iSentryGlow, "SetParent", iParent);
+			}
+			
+			//Update my model.
+			char strModelSentry[PLATFORM_MAX_PATH];
+			GetEntPropString(iParent, Prop_Data, "m_ModelName", strModelSentry, sizeof(strModelSentry));
+			
+			if (strModelSentry[0] != '\0')
+			{
+				SetEntityModel(iSentryGlow, strModelSentry);
+				SetEntProp(iSentryGlow, Prop_Send, "m_nModelIndex", GetEntProp(iParent, Prop_Send, "m_nModelIndex"));
+			}
+		}
+		if (GetEntPropFloat(iSentryGlow, Prop_Send, "m_flModelScale") != GetEntPropFloat(iParent, Prop_Send, "m_flModelScale")) //If the engie/sentry has been resized by another plugin, fix our glow.
+			SetEntPropFloat(iSentryGlow, Prop_Send, "m_flModelScale", GetEntPropFloat(iParent, Prop_Send, "m_flModelScale"));
+	}
+	else //I don't have any parent, how de fuk is glow still alive? Safe check, kill.
+		AcceptEntityInput(iSentryGlow, "Kill");
+	if (0 < iClient <= MaxClients && IsClientInGame(iClient) && g_bIsSentryBuster[iClient]) return Plugin_Continue;//Allow the sentry buster to see the glow.
+	return Plugin_Handled;//Do not allow other players to see it.
 }
 
 public void OnSpawnPost(int trigger)
