@@ -558,24 +558,21 @@ void Frame_SentryVision_Create(int iRef)
 			SetVariantString("!activator");
 			AcceptEntityInput(iGlow, "SetParent", iSentry);
 			
-			SDKHook(iGlow, SDKHook_SetTransmit, SentryVision_OnThink);
+			SDKHook(iGlow, SDKHook_SetTransmit, SentryVision_OnTransmit);
 		}
 	}
 }
 
-public Action SentryVision_OnThink(int iSentryGlow, int iClient)
+public Action SentryVision_OnTransmit(int iSentryGlow, int iClient)
 {
 	//Who's my parent?
 	int iParent = GetEntPropEnt(iSentryGlow, Prop_Send, "moveparent");
-	if (iParent > MaxClients)//Safe check to know if I'm parented to the sentry and NOT carried! We don't want to put the glow on the blueprint!
+	if (IsValidEntity(iParent))	//Safe check to know if I'm parented to the sentry and NOT carried! We don't want to put the glow on the blueprint!
 	{
 		bool bCarried = (GetEntProp(iSentryGlow, Prop_Send, "m_bCarried") || GetEntProp(iSentryGlow, Prop_Send, "m_bPlacing"));
-		if (bCarried)//I'm parented, set my parent to the engie!
+		if (bCarried)	//I'm parented, set my parent to the engie!
 			iParent = GetEntPropEnt(iSentryGlow, Prop_Send, "m_hOwnerEntity");
-	}
-	//Keep my model and parent infos up to date.
-	if (0 < iParent <= MaxClients || iParent > MaxClients)
-	{
+
 		if (GetEntProp(iSentryGlow, Prop_Send, "m_nModelIndex") != GetEntProp(iParent, Prop_Send, "m_nModelIndex"))
 		{
 			int iOldParent = GetEntPropEnt(iSentryGlow, Prop_Send, "moveparent");
@@ -599,13 +596,19 @@ public Action SentryVision_OnThink(int iSentryGlow, int iClient)
 				SetEntProp(iSentryGlow, Prop_Send, "m_nModelIndex", GetEntProp(iParent, Prop_Send, "m_nModelIndex"));
 			}
 		}
-		if (GetEntPropFloat(iSentryGlow, Prop_Send, "m_flModelScale") != GetEntPropFloat(iParent, Prop_Send, "m_flModelScale")) //If the engie/sentry has been resized by another plugin, fix our glow.
+		
+		if (GetEntPropFloat(iSentryGlow, Prop_Send, "m_flModelScale") != GetEntPropFloat(iParent, Prop_Send, "m_flModelScale"))	//If the engie/sentry has been resized by another plugin, fix our glow.
 			SetEntPropFloat(iSentryGlow, Prop_Send, "m_flModelScale", GetEntPropFloat(iParent, Prop_Send, "m_flModelScale"));
 	}
-	else //I don't have any parent, how de fuk is glow still alive? Safe check, kill.
+	else //I don't have any parent.
 		AcceptEntityInput(iSentryGlow, "Kill");
-	if (0 < iClient <= MaxClients && IsClientInGame(iClient) && g_bIsSentryBuster[iClient]) return Plugin_Continue;//Allow the sentry buster to see the glow.
-	return Plugin_Handled;//Do not allow other players to see it.
+	
+	//Allow the sentry buster to see the glow.
+	if (0 < iClient <= MaxClients && IsClientInGame(iClient) && g_bIsSentryBuster[iClient])
+		return Plugin_Continue;	
+	
+	//Do not allow other players to see it.
+	return Plugin_Handled;	
 }
 
 public void OnSpawnPost(int trigger)
