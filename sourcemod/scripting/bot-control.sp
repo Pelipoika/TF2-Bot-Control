@@ -628,10 +628,9 @@ public Action SentryVision_OnThink(int iSentryGlow, int iClient)
 	}
 	else //I don't have any parent, how de fuk is glow still alive? Safe check, kill.
 		AcceptEntityInput(iSentryGlow, "Kill");
-	/*
+
 	if (0 < iClient <= MaxClients && IsClientInGame(iClient) && g_bIsSentryBuster[iClient]) return Plugin_Continue;//Allow the sentry buster to see the glow.
 	return Plugin_Handled;//Do not allow other players to see it.
-	*/
 }
 
 public void OnSpawnPost(int trigger)
