@@ -1788,7 +1788,7 @@ stock void TF2_KillBot(int client, int attacker = -1)
 			}
 		}
 		
-		SDKHooks_TakeDamage(iBot, iWeapon, attacker, 99999999.0);
+		SDKHooks_TakeDamage(iBot, iWeapon, attacker, 99999999.0, _, iWeapon);
 		
 		SetEntProp(iBot, Prop_Send, "m_bUseBossHealthBar", 0);
 		SetEntProp(iBot, Prop_Send, "m_bIsMiniBoss", 0);
