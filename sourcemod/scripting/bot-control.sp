@@ -1409,7 +1409,8 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 			}
 			else
 			{
-				TF2_KillBot(client);
+				int attacker = GetClientOfUserId(event.GetInt("attacker"));
+				TF2_KillBot(client, (0 < attacker <= MaxClients && TF2_GetPlayerClass(attacker) == TFClass_Sniper) ? attacker : -1);
 			}
 		}
 	}
@@ -1761,16 +1762,29 @@ stock void TF2_ClearBot(int client, bool bKill = false)
 	OnClientPutInServer(client);
 }
 
-stock void TF2_KillBot(int client)
+stock void TF2_KillBot(int client, int attacker = -1)
 {
 	int iBot = GetClientOfUserId(g_iPlayersBot[client]);
 	if(iBot > 0 && IsFakeClient(iBot))
 	{
+		if (attacker == -1) attacker = iBot;
+		
 		SetEntityMoveType(iBot, MOVETYPE_WALK);
 		
 		TF2_RemoveAllConditions(iBot);
 		
-		SDKHooks_TakeDamage(iBot, iBot, iBot, 99999999.0);
+		int iWeapon = iBot;
+		
+		if (attacker != iBot)
+		{
+			if (0 < attacker <= MaxClients)
+			{
+				iWeapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");//If the bot was controlled, and killed by a red sniper, this will fix the money not being auto-distribued.
+				if (iWeapon <= 0) iWeapon = attacker
+			}
+		}
+		
+		SDKHooks_TakeDamage(iBot, iWeapon, attacker, 99999999.0);
 		
 		SetEntProp(iBot, Prop_Send, "m_bUseBossHealthBar", 0);
 		SetEntProp(iBot, Prop_Send, "m_bIsMiniBoss", 0);
