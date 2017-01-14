@@ -307,7 +307,7 @@ public void OnPluginStart()
 	HookEvent("teamplay_round_start", Event_ResetBots);
 	HookEvent("mvm_wave_complete",    Event_ResetBots);
 	HookEvent("player_sapped_object", Event_SappedObject);
-
+	
 	RegConsoleCmd("sm_joinblue",   Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_joinblu",    Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_joinbrobot", Command_ToggleRandomPicker);
@@ -513,10 +513,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 		SDKHook(entity, SDKHook_SetTransmit, Hook_TeleporterTransmit);
 		SDKHook(entity, SDKHook_OnTakeDamage, Hook_TeleporterTakeDamage);
 	}
-	else if(StrEqual(classname, "obj_sentrygun"))
-	{
-		RequestFrame(Frame_SentryVision_Create, EntIndexToEntRef(entity));
-	}
 	
 	if(g_bIsMannhattan)
 	{
@@ -569,26 +565,54 @@ public Action SentryVision_OnThink(int iSentryGlow, int iClient)
 	int iParent = GetEntPropEnt(iSentryGlow, Prop_Send, "moveparent");
 	if (iParent > MaxClients)//Safe check to know if I'm parented to the sentry and NOT carried! We don't want to put the glow on the blueprint!
 	{
-		bool bCarried = (GetEntProp(iSentryGlow, Prop_Send, "m_bCarried") || GetEntProp(iSentryGlow, Prop_Send, "m_bPlacing"));
-		if (bCarried)//I'm parented, set my parent to the engie!
-			iParent = GetEntPropEnt(iSentryGlow, Prop_Send, "m_hOwnerEntity");
+		bool bCarried = (GetEntProp(iParent, Prop_Send, "m_bCarried") || GetEntProp(iParent, Prop_Send, "m_bPlacing"));
+		if (bCarried)//The sentry is carried, set my parent to the engie!
+			iParent = GetEntPropEnt(iParent, Prop_Send, "m_hBuilder");
 	}
+	else if (0 < iParent <= MaxClients)//My parent is the engie.
+	{
+		static int iRefCarriedObjects[MAXPLAYERS+1];//Last carried object by the engie.
+		
+		bool bCarrying = view_as<bool>(GetEntProp(iParent, Prop_Send, "m_bCarryingObject"));
+		if (bCarrying)
+		{
+			int iCarriedObject = GetEntPropEnt(iParent, Prop_Send, "m_hCarriedObject");
+			if (iCarriedObject > MaxClients)
+				iRefCarriedObjects[iParent] = EntIndexToEntRef(iCarriedObject);//Save the building's index object, very important so we don't blindy loop across every sentry guns once it's placed, and end up setting 2 glows on the same sentry (i.e 2 glows on an engie's mini-sentry)
+			else
+				AcceptEntityInput(iSentryGlow, "Kill");
+		}
+		else //The sentry is no longer carried but I'm still parented to the player, move my parent to the sentry.
+		{
+			int iSentry = EntRefToEntIndex(iRefCarriedObjects[iParent]);
+			if (iSentry > MaxClients)
+				iParent = iSentry;
+			else //The sentry has been destroyed, kill our glow
+				AcceptEntityInput(iSentryGlow,"Kill");
+		}
+	}
+	
 	//Keep my model and parent infos up to date.
 	if (0 < iParent <= MaxClients || iParent > MaxClients)
 	{
+		int iOldParent = GetEntPropEnt(iSentryGlow, Prop_Send, "moveparent");
+		
+		if (iParent != iOldParent)
+		{
+			//Unparent me from my old parent.
+			AcceptEntityInput(iSentryGlow,"ClearParent");
+			
+			float flParentPos[3];
+			GetEntPropVector(iParent, Prop_Data, "m_vecAbsOrigin", flParentPos);
+			TeleportEntity(iSentryGlow, flParentPos, NULL_VECTOR, NULL_VECTOR);
+			
+			//Parent me to the new entity.
+			SetVariantString("!activator");
+			AcceptEntityInput(iSentryGlow, "SetParent", iParent);
+		}
+		
 		if (GetEntProp(iSentryGlow, Prop_Send, "m_nModelIndex") != GetEntProp(iParent, Prop_Send, "m_nModelIndex"))
 		{
-			int iOldParent = GetEntPropEnt(iSentryGlow, Prop_Send, "moveparent");
-			
-			if (iParent != iOldParent)
-			{
-				//Unparent me from my old parent.
-				AcceptEntityInput(iSentryGlow,"ClearParent");
-				//Parent me to the new entity.
-				SetVariantString("!activator");
-				AcceptEntityInput(iSentryGlow, "SetParent", iParent);
-			}
-			
 			//Update my model.
 			char strModelSentry[PLATFORM_MAX_PATH];
 			GetEntPropString(iParent, Prop_Data, "m_ModelName", strModelSentry, sizeof(strModelSentry));
@@ -604,6 +628,7 @@ public Action SentryVision_OnThink(int iSentryGlow, int iClient)
 	}
 	else //I don't have any parent, how de fuk is glow still alive? Safe check, kill.
 		AcceptEntityInput(iSentryGlow, "Kill");
+
 	if (0 < iClient <= MaxClients && IsClientInGame(iClient) && g_bIsSentryBuster[iClient]) return Plugin_Continue;//Allow the sentry buster to see the glow.
 	return Plugin_Handled;//Do not allow other players to see it.
 }
@@ -1390,7 +1415,8 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 			}
 			else
 			{
-				TF2_KillBot(client);
+				int attacker = GetClientOfUserId(event.GetInt("attacker"));
+				TF2_KillBot(client, (0 < attacker <= MaxClients && TF2_GetPlayerClass(attacker) == TFClass_Sniper) ? attacker : -1);
 			}
 		}
 	}
@@ -1457,6 +1483,17 @@ public Action Event_BuildObject(Event event, const char[] name, bool dontBroadca
 		else
 		{
 			DispatchKeyValue(iEnt, "defaultupgrade", "2");
+		}
+	}
+	
+	if (IsClientInGame(client) && TF2_GetPlayerClass(client) == TFClass_Engineer && TF2_GetClientTeam(client) == TFTeam_Red)
+	{
+		TFObjectType TFObject = view_as<TFObjectType>(event.GetInt("object"));
+		
+		if (TFObject == TFObject_Sentry)
+		{
+			int iEnt = event.GetInt("index");
+			RequestFrame(Frame_SentryVision_Create, EntIndexToEntRef(iEnt));
 		}
 	}
 	
@@ -1729,16 +1766,29 @@ stock void TF2_ClearBot(int client, bool bKill = false)
 	OnClientPutInServer(client);
 }
 
-stock void TF2_KillBot(int client)
+stock void TF2_KillBot(int client, int attacker = -1)
 {
 	int iBot = GetClientOfUserId(g_iPlayersBot[client]);
 	if(iBot > 0 && IsFakeClient(iBot))
 	{
+		if (attacker == -1) attacker = iBot;
+		
 		SetEntityMoveType(iBot, MOVETYPE_WALK);
 		
 		TF2_RemoveAllConditions(iBot);
 		
-		SDKHooks_TakeDamage(iBot, iBot, iBot, 99999999.0);
+		int iWeapon = iBot;
+		
+		if (attacker != iBot)
+		{
+			if (0 < attacker <= MaxClients)
+			{
+				iWeapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");//If the bot was controlled, and killed by a red sniper, this will fix the money not being auto-distribued.
+				if (iWeapon <= 0) iWeapon = attacker
+			}
+		}
+		
+		SDKHooks_TakeDamage(iBot, iWeapon, attacker, 99999999.0);
 		
 		SetEntProp(iBot, Prop_Send, "m_bUseBossHealthBar", 0);
 		SetEntProp(iBot, Prop_Send, "m_bIsMiniBoss", 0);
