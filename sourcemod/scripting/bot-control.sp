@@ -120,6 +120,7 @@ Handle g_hSDKUpdateSkin;
 //DHooks
 Handle g_hIsValidTarget;
 Handle g_hCTFPlayerShouldGib;
+Handle g_hShouldTransmit;
 //Handle g_hCTFBotIsAllowedToPickupFlag;
 
 //Offsets
@@ -268,6 +269,10 @@ public void OnPluginStart()
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::ShouldGib");
 	g_hCTFPlayerShouldGib = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFPlayer_ShouldGib);
 	DHookAddParam(g_hCTFPlayerShouldGib, HookParamType_ObjectPtr, -1, DHookPass_ByRef);
+	
+	iOffset = GameConfGetOffset(hConf, "CBaseEntity::ShouldTransmit");
+	g_hShouldTransmit = DHookCreate(iOffset, HookType_Entity, ReturnType_Int, ThisPointer_CBaseEntity, Hook_EntityShouldTransmit);
+	DHookAddParam(g_hShouldTransmit, HookParamType_ObjectPtr);
 	
 //	iOffset = GameConfGetOffset(hConf, "CTFBot::IsAllowedToPickUpFlag");
 //	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::IsAllowedToPickUpFlag");
@@ -455,6 +460,13 @@ public MRESReturn CTFPlayer_ShouldGib(int pThis, Handle hReturn, Handle hParams)
 	
 	return MRES_Ignored;
 }
+
+public MRESReturn Hook_EntityShouldTransmit(int entity, Handle hReturn, Handle hParams)
+{
+	DHookSetReturn(hReturn, FL_EDICT_ALWAYS);
+	return MRES_Supercede;
+}
+
 /*
 public MRESReturn CTFBot_IsAllowedToPickupFlag(int pThis, Handle hReturn, Handle hParams)
 {
@@ -533,6 +545,11 @@ void Frame_SentryVision_Create(int iRef)
 		int iGlow = CreateEntityByName("tf_taunt_prop");
 		if(iGlow > MaxClients)
 		{
+			//Make the sentry always transmit
+			DHookEntity(g_hShouldTransmit, true, iSentry);
+			//Add one on the glow, not needed, but make sure the always transmit flag goes on both entity
+			DHookEntity(g_hShouldTransmit, true, iGlow);
+			
 			float flModelScale = GetEntPropFloat(iSentry, Prop_Send, "m_flModelScale");
 			SetEntProp(iGlow, Prop_Send, "m_nModelIndex", GetEntProp(iSentry, Prop_Send, "m_nModelIndex"));
 

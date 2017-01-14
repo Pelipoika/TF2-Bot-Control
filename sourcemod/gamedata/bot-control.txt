@@ -92,6 +92,11 @@
 		}
 		"Offsets"
 		{
+			"CBaseEntity::ShouldTransmit"
+			{
+				"windows"	"18"
+				"linux"		"19"
+			}
 			"CTFPlayer::EquipWearable"
 			{
 				"windows"	"429"
