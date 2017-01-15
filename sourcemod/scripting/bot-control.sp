@@ -120,7 +120,6 @@ Handle g_hSDKUpdateSkin;
 //DHooks
 Handle g_hIsValidTarget;
 Handle g_hCTFPlayerShouldGib;
-Handle g_hShouldTransmit;
 //Handle g_hCTFBotIsAllowedToPickupFlag;
 
 //Offsets
@@ -547,9 +546,10 @@ void Frame_SentryVision_Create(int iRef)
 		{
 			//Make the sentry always transmit
 			DHookEntity(g_hShouldTransmit, true, iSentry);
+			
 			//Add one on the glow, not needed, but make sure the always transmit flag goes on both entity
 			DHookEntity(g_hShouldTransmit, true, iGlow);
-			
+		
 			float flModelScale = GetEntPropFloat(iSentry, Prop_Send, "m_flModelScale");
 			SetEntProp(iGlow, Prop_Send, "m_nModelIndex", GetEntProp(iSentry, Prop_Send, "m_nModelIndex"));
 
@@ -928,9 +928,17 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		int iActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
 		if(IsValidEntity(iActiveWeapon))
 		{
-			if(TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden) && buttons & IN_ATTACK)
+			if(TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden))
 			{
-				SetEntPropFloat(iActiveWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.25);
+				if(buttons & IN_ATTACK)
+				{
+					SetEntPropFloat(iActiveWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.25);
+				}
+				if(buttons & IN_DUCK)
+				{
+					//Disallow crouching in spawn so when you lose control of your bot the bot wont spawn inside ground.
+					buttons &= ~IN_DUCK;
+				}
 			}
 
 			if(g_iPlayerAttributes[client] & view_as<int>(AUTOJUMP))
@@ -979,7 +987,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					if(iClip1 < iMaxClip1 && buttons & IN_ATTACK)
 					{
 						SetHudTextParams(-1.0, -0.65, 0.25, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
-						ShowSyncHudText(client, g_hHudReload, "CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON");
+						ShowSyncHudText(client, g_hHudReload, "CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON\n \
+															CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON\n \
+															CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON\n \
+															CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON");
 						
 						SetEntPropFloat(iActiveWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.1);
 					}
