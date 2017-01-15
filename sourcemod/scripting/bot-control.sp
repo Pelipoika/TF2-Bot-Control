@@ -461,10 +461,24 @@ public MRESReturn CTFPlayer_ShouldGib(int pThis, Handle hReturn, Handle hParams)
 	return MRES_Ignored;
 }
 
-public MRESReturn Hook_EntityShouldTransmit(int entity, Handle hReturn, Handle hParams)
+public MRESReturn Hook_EntityShouldTransmit(int pThis, Handle hReturn, Handle hParams)
 {
-	DHookSetReturn(hReturn, FL_EDICT_ALWAYS);
-	return MRES_Supercede;
+	if(GameRules_GetProp("m_bPlayingMannVsMachine"))
+	{
+		int Object = pThis;
+		if(IsValidEntity(Object))
+		{
+			bool bCarried = (GetEntProp(Object, Prop_Send, "m_bCarried") || GetEntProp(Object, Prop_Send, "m_bPlacing"));
+			if(bCarried)	//Let game decide
+				return MRES_Ignored;
+			
+			DHookSetReturn(hReturn, FL_EDICT_ALWAYS);
+			
+			return MRES_Supercede;
+		}
+	}
+	
+	return MRES_Ignored;
 }
 
 /*
@@ -547,9 +561,6 @@ void Frame_SentryVision_Create(int iRef)
 		{
 			//Make the sentry always transmit
 			DHookEntity(g_hShouldTransmit, true, iSentry);
-			
-			//Add one on the glow, not needed, but make sure the always transmit flag goes on both entity
-			DHookEntity(g_hShouldTransmit, true, iGlow);
 		
 			float flModelScale = GetEntPropFloat(iSentry, Prop_Send, "m_flModelScale");
 			SetEntProp(iGlow, Prop_Send, "m_nModelIndex", GetEntProp(iSentry, Prop_Send, "m_nModelIndex"));
