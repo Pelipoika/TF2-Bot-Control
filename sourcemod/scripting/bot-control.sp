@@ -120,6 +120,7 @@ Handle g_hSDKUpdateSkin;
 //DHooks
 Handle g_hIsValidTarget;
 Handle g_hCTFPlayerShouldGib;
+Handle g_hShouldTransmit;
 //Handle g_hCTFBotIsAllowedToPickupFlag;
 
 //Offsets
@@ -2515,8 +2516,9 @@ public void GiveItem(int client, int DefIndex, char[] ItemClass, int iAttribCoun
 		TF2Item = TF2Items_CreateItem(OVERRIDE_ALL|FORCE_GENERATION|PRESERVE_ATTRIBUTES);
 	
 	char ItemClassTrans[64];
-	bool bChanged = TranslateWeaponEntForClass(ItemClass, TF2_GetPlayerClass(client), ItemClassTrans, sizeof(ItemClassTrans));
-	PrintToServer("GiveItem %s changed %s", ItemClassTrans, bChanged ? "yes" : "no");
+	/*bool bChanged = */
+	TranslateWeaponEntForClass(ItemClass, TF2_GetPlayerClass(client), ItemClassTrans, sizeof(ItemClassTrans));
+//	PrintToServer("GiveItem %s changed %s", ItemClassTrans, bChanged ? "yes" : "no");
 	
 	bool IsWeapon = StrContains(ItemClassTrans, "tf_weapon") != -1;
 	
@@ -2573,7 +2575,7 @@ public void GiveItem(int client, int DefIndex, char[] ItemClass, int iAttribCoun
 			SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", ItemEntity);
 		}
 		
-		PrintToConsole(client, "Index %i | iDefIndex %i | ItemClass %s", ItemEntity, DefIndex, ItemClassTrans);
+	//	PrintToConsole(client, "Index %i | iDefIndex %i | ItemClass %s", ItemEntity, DefIndex, ItemClassTrans);
 	}
 	else
 	{
