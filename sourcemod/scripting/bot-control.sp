@@ -819,10 +819,10 @@ public Action OnSpawnStartTouch(int iEntity, int iOther)
 
 	if(iTeam == view_as<int>(TFTeam_Blue) && iOther > 0 && iOther <= MaxClients && GetClientTeam(iOther) == iTeam && !IsFakeClient(iOther))
 	{
-		if(!TF2_IsPlayerInCondition(iOther, TFCond_UberchargedHidden))
+	/*	if(!TF2_IsPlayerInCondition(iOther, TFCond_UberchargedHidden))
 		{
 			g_flControlEndTime[iOther] = GetGameTime() + 35.0;
-		}
+		}*/
 	
 		TF2_AddCondition(iOther, TFCond_UberchargedHidden);
 		TF2_AddCondition(iOther, TFCond_Ubercharged);
@@ -863,7 +863,7 @@ public void TF2_OnConditionAdded(int client, TFCond cond)
 		TF2_RemoveCondition(client, view_as<TFCond>(15));
 	}
 }
-
+/*
 public void TF2_OnConditionRemoved(int client, TFCond cond)
 {
 	if(cond == TFCond_UberchargedHidden)
@@ -871,7 +871,7 @@ public void TF2_OnConditionRemoved(int client, TFCond cond)
 		g_flControlEndTime[client] = -1.0;
 	}
 }
-
+*/
 public void OnWearableSpawnPost(int iWearable)
 {
 	RequestFrame(OnWearableSpawnPostPost, EntIndexToEntRef(iWearable));
@@ -1857,6 +1857,9 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	TF2Attrib_RemoveAll(client);
 	TF2Attrib_ClearCache(client);
 	TF2_MirrorItems(iTarget, client);
+	
+	//New hot technology
+	g_flControlEndTime[client] = GetGameTime() + 35.0;
 	
 	//Set HP
 	SetEntProp(client, Prop_Send, "m_iHealth", GetEntProp(iTarget, Prop_Send, "m_iHealth"));
