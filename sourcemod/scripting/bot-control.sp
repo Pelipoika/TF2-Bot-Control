@@ -324,12 +324,11 @@ public void OnPluginStart()
 			OnClientPutInServer(client);
 }
 
-/*
 public void TF2_OnWaitingForPlayersEnd()
 {
 	if(!TF2_IsMvM())
 		SetFailState("[Bot Control] Disabling for non mvm map");
-}*/
+}
 
 public Action Command_ToggleRandomPicker(int client, int args)
 {
@@ -358,7 +357,6 @@ public Action Command_ToggleRandomPicker(int client, int args)
 			if(TF2_GetClientTeam(client) != TFTeam_Spectator && TF2_GetClientTeam(client) != TFTeam_Blue)
 			{
 				TF2_ChangeClientTeam(client, TFTeam_Spectator);
-				TF2_RespawnPlayer(client);
 			}
 		}
 		else
@@ -698,10 +696,10 @@ public Action OnFlagTouch(int iEntity, int iOther)
 {
 	if(GetEntPropEnt(iEntity, Prop_Data, "m_hMoveParent") != -1)
 		return Plugin_Handled;
-
+	
 	if(iOther <= 0 || iOther > MaxClients || !IsClientInGame(iOther))
 		return Plugin_Handled;
-
+	
 	if(IsFakeClient(iOther) || !IsPlayerAlive(iOther))
 		return Plugin_Handled;
 	
@@ -718,27 +716,32 @@ public Action OnFlagTouch(int iEntity, int iOther)
 
 public Action OnHatchStartTouch(int iEntity, int client)
 {
-	if(client > 0 && client <= MaxClients && !IsFakeClient(client) && !g_bDeploying[client] && g_bHasBomb[client])
-	{
-		if(TF2_IsPlayerInCondition(client, TFCond_Charging)) TF2_RemoveCondition(client, TFCond_Charging);
-		if(TF2_IsPlayerInCondition(client, TFCond_Taunting)) TF2_RemoveCondition(client, TFCond_Taunting);
+	if(!(client > 0 && client <= MaxClients && !IsFakeClient(client)))
+		return Plugin_Continue;
+			
+	if(g_bDeploying[client] && !g_bHasBomb[client])
+		return Plugin_Continue;
 
-		if(TF2_IsGiant(client))
-			EmitSoundToAll(SOUND_DEPLOY_GIANT);
-		else
-			EmitSoundToAll(SOUND_DEPLOY_SMALL);
-		
-		BroadcastSoundToTeam(TFTeam_Spectator, "Announcer.MVM_Bomb_Alert_Deploying");
-		
-		SDKCall(g_hSDKPlaySpecificSequence, client, "primary_deploybomb");			
-		RequestFrame(DisableAnim, GetClientUserId(client));	
+	if(TF2_IsPlayerInCondition(client, TFCond_Charging)) TF2_RemoveCondition(client, TFCond_Charging);
+	if(TF2_IsPlayerInCondition(client, TFCond_Taunting)) TF2_RemoveCondition(client, TFCond_Taunting);
 
-		SetVariantInt(1);
-		AcceptEntityInput(client, "SetForcedTauntCam");
-		
-		g_flBombDeployTime[client] = GetGameTime() + GetConVarFloat(FindConVar("tf_deploying_bomb_time")) + 0.5;
-		g_bDeploying[client] = true;
-	}
+	if(TF2_IsGiant(client))
+		EmitSoundToAll(SOUND_DEPLOY_GIANT);
+	else
+		EmitSoundToAll(SOUND_DEPLOY_SMALL);
+	
+	BroadcastSoundToTeam(TFTeam_Spectator, "Announcer.MVM_Bomb_Alert_Deploying");
+	
+	SDKCall(g_hSDKPlaySpecificSequence, client, "primary_deploybomb");			
+	RequestFrame(DisableAnim, GetClientUserId(client));	
+
+	SetVariantInt(1);
+	AcceptEntityInput(client, "SetForcedTauntCam");
+	
+	g_flBombDeployTime[client] = GetGameTime() + GetConVarFloat(FindConVar("tf_deploying_bomb_time")) + 0.5;
+	g_bDeploying[client] = true;
+	
+	return Plugin_Continue;
 }
 
 public void DisableAnim(int userid)
@@ -819,11 +822,6 @@ public Action OnSpawnStartTouch(int iEntity, int iOther)
 
 	if(iTeam == view_as<int>(TFTeam_Blue) && iOther > 0 && iOther <= MaxClients && GetClientTeam(iOther) == iTeam && !IsFakeClient(iOther))
 	{
-	/*	if(!TF2_IsPlayerInCondition(iOther, TFCond_UberchargedHidden))
-		{
-			g_flControlEndTime[iOther] = GetGameTime() + 35.0;
-		}*/
-	
 		TF2_AddCondition(iOther, TFCond_UberchargedHidden);
 		TF2_AddCondition(iOther, TFCond_Ubercharged);
 		TF2_AddCondition(iOther, TFCond_UberchargeFading);
@@ -863,15 +861,7 @@ public void TF2_OnConditionAdded(int client, TFCond cond)
 		TF2_RemoveCondition(client, view_as<TFCond>(15));
 	}
 }
-/*
-public void TF2_OnConditionRemoved(int client, TFCond cond)
-{
-	if(cond == TFCond_UberchargedHidden)
-	{
-		g_flControlEndTime[client] = -1.0;
-	}
-}
-*/
+
 public void OnWearableSpawnPost(int iWearable)
 {
 	RequestFrame(OnWearableSpawnPostPost, EntIndexToEntRef(iWearable));
@@ -1038,9 +1028,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					g_bControllingBot[client] = false;
 					g_bRandomlyChooseBot[client] = false;
 					
-					TF2_ChangeClientTeam(client, TFTeam_Spectator);
-					TF2_RespawnPlayer(client);
 					TF2_RestoreBot(client);
+					TF2_ChangeClientTeam(client, TFTeam_Spectator);
 					
 					g_flCooldownEndTime[client] = GetGameTime() + 30.0;
 					
@@ -1076,7 +1065,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					TF2_DetonateBuster(client);					
 					TF2_ClearBot(client);
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
-					TF2_RespawnPlayer(client);
 				}
 				
 				for(int i = 1; i <= MaxClients; i++)
@@ -1093,7 +1081,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							TF2_DetonateBuster(client);							
 							TF2_ClearBot(client);
 							TF2_ChangeClientTeam(client, TFTeam_Spectator);
-							TF2_RespawnPlayer(client);
 						}
 					}
 				}
@@ -1356,7 +1343,6 @@ public Action Event_ResetBots(Event event, const char[] name, bool dontBroadcast
 				{
 					TF2_ClearBot(client, true);
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
-					TF2_RespawnPlayer(client);
 				}
 			}
 			
@@ -1381,7 +1367,6 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 			{
 				TF2_RestoreBot(client);
 				TF2_ChangeClientTeam(client, TFTeam_Spectator);
-				TF2_RespawnPlayer(client);
 
 				g_bSkipInventory[client] = false;
 			}
@@ -1451,7 +1436,6 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 				TF2_DetonateBuster(client);
 				TF2_ClearBot(client);
 				TF2_ChangeClientTeam(client, TFTeam_Spectator);
-				TF2_RespawnPlayer(client);
 			}
 			else
 			{
@@ -1653,17 +1637,15 @@ public Action Listener_Block(int client, char[] command, int args)
 	{		
 		if(!g_bIsSentryBuster[client])
 		{
-			TF2_ChangeClientTeam(client, TFTeam_Spectator);
-			TF2_RespawnPlayer(client);
 			TF2_RestoreBot(client);
+			TF2_ChangeClientTeam(client, TFTeam_Spectator);	
 			
 			g_flCooldownEndTime[client] = GetGameTime() + 10.0;
 		}
 		else if(g_bIsSentryBuster[client] && GetEntPropEnt(client, Prop_Data, "m_hGroundEntity") != -1)
 		{
-			TF2_ChangeClientTeam(client, TFTeam_Spectator);
-			TF2_RespawnPlayer(client);
 			TF2_RestoreBot(client);
+			TF2_ChangeClientTeam(client, TFTeam_Spectator);
 			
 			g_flCooldownEndTime[client] = GetGameTime() + 10.0;
 		}
