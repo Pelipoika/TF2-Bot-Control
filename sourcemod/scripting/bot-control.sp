@@ -718,13 +718,16 @@ public Action OnHatchStartTouch(int iEntity, int client)
 {
 	if(!(client > 0 && client <= MaxClients && !IsFakeClient(client)))
 		return Plugin_Continue;
-			
-	if(g_bDeploying[client] && !g_bHasBomb[client])
+		
+	if(!g_bHasBomb[client])
+		return Plugin_Handled;
+		
+	if(g_bDeploying[client])
 		return Plugin_Continue;
-
+	
 	if(TF2_IsPlayerInCondition(client, TFCond_Charging)) TF2_RemoveCondition(client, TFCond_Charging);
 	if(TF2_IsPlayerInCondition(client, TFCond_Taunting)) TF2_RemoveCondition(client, TFCond_Taunting);
-
+	
 	if(TF2_IsGiant(client))
 		EmitSoundToAll(SOUND_DEPLOY_GIANT);
 	else
@@ -734,7 +737,7 @@ public Action OnHatchStartTouch(int iEntity, int client)
 	
 	SDKCall(g_hSDKPlaySpecificSequence, client, "primary_deploybomb");			
 	RequestFrame(DisableAnim, GetClientUserId(client));	
-
+	
 	SetVariantInt(1);
 	AcceptEntityInput(client, "SetForcedTauntCam");
 	
@@ -1373,16 +1376,15 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 		}
 		
 		if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) != TFClass_Spy)
-		{		
-			//Might need to happen even later
-			SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
+		{
+			//Might need to happen even later.
+			if(!IsFakeClient(client)) 
+				SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));			
 			
-			if(IsFakeClient(client))
-				return;
-			
-			int iBotAttrs = GetEntData(client, g_iOffsetBotAttribs);
+			//Accessing m_nBotAttribs on players is dangerous.
+			int iBotAttrs = IsFakeClient(client) ? GetEntData(client, g_iOffsetBotAttribs) : g_iPlayerAttributes[client];
 			if(!(iBotAttrs & view_as<int>(TELEPORTTOHINT)))
-			{	
+			{
 				int iTele = TF2_FindTeleNearestToBombHole();
 				if(IsValidEntity(iTele))
 				{
@@ -1396,7 +1398,7 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 					TF2_RemoveCondition(client, TFCond_UberchargedHidden);
 					TF2_AddCondition(client, TFCond_UberchargedCanteen, 5.0);
 					TF2_AddCondition(client, TFCond_UberchargeFading, 5.0);
-				
+					
 					int iBuilder = EntRefToEntIndex(GetEntPropEnt(iTele, Prop_Send, "m_hBuilder"));
 					if(iBuilder > 0 && iBuilder <= MaxClients && IsClientInGame(iBuilder) && IsFakeClient(client) && !IsFakeClient(iBuilder))
 					{
@@ -1987,9 +1989,9 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	float flJumpMax = GetEntDataFloat(iTarget, g_iOffsetAutoJumpMax);
 	int iBotAttrs = GetEntData(iTarget, g_iOffsetBotAttribs);
 	
-	g_flAutoJumpMin[client] = flJumpMin;
-	g_flAutoJumpMax[client] = flJumpMax;
-	g_iPlayerAttributes[client] = iBotAttrs;
+	g_flAutoJumpMin[client]		= flJumpMin;
+	g_flAutoJumpMax[client]		= flJumpMax;
+	g_iPlayerAttributes[client]	= iBotAttrs;
 
 	if(iBotAttrs & view_as<int>(IGNOREFLAG))	TF2Attrib_SetByName(client, "cannot pick up intelligence", 1.0);
 	if(iBotAttrs & view_as<int>(ALWAYSCRIT))	TF2_AddCondition(client, TFCond_CritOnFlagCapture);
@@ -1998,7 +2000,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	if(iBotAttrs & view_as<int>(FIREIMMUNE))	TF2_AddCondition(client, TFCond_FireImmune);
 	
 //	SetEntData(client, g_iOffsetBotAttribs, iBotAttrs, true);	//It does stuff, trust me.
-	SetEntData(client, g_iOffsetMissionBot, 1, _, true);		//Makes player death not decrement wave bot count
+	SetEntData(client, g_iOffsetMissionBot, 	1, _, true);	//Makes player death not decrement wave bot count
 	SetEntData(client, g_iOffsetSupportLimited, 0, _, true);	//Makes player death not decrement wave bot count
 	
 	//Fix some bugs...	
@@ -2036,11 +2038,11 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	TeleportEntity(client, flPos, flAng, flVelocity);
 	TeleportEntity(iTarget, view_as<float>({0.0, 0.0, 9999.0}), NULL_VECTOR, NULL_VECTOR);
 
-	g_iPlayersBot[client] = GetClientUserId(iTarget);
-	g_bControllingBot[client] = true;
-	g_bIsControlled[iTarget] = true;
-	g_iController[iTarget] = GetClientUserId(client);
-	g_bSkipInventory[client] = true;
+	g_iPlayersBot[client] 		= GetClientUserId(iTarget);
+	g_iController[iTarget]		= GetClientUserId(client);
+	g_bControllingBot[client]	= true;
+	g_bIsControlled[iTarget]	= true;
+	g_bSkipInventory[client]	= true;
 }
 
 stock void TF2_MirrorItems(int iTarget, int client)
