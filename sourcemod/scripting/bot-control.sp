@@ -305,9 +305,9 @@ public void OnPluginStart()
 	AddCommandListener(Listener_ChoseHuman, "tournament_player_readystate");
 
 	HookEvent("teamplay_flag_event",  Event_FlagEvent);
+	HookEvent("player_team",          Event_PlayerTeam,  EventHookMode_Pre);
 	HookEvent("player_death",         Event_PlayerDeath, EventHookMode_Pre);
 	HookEvent("player_spawn",         Event_PlayerSpawn);
-	HookEvent("player_team",          Event_PlayerTeam, EventHookMode_Pre);
 	HookEvent("player_builtobject",   Event_BuildObject);
 	HookEvent("teamplay_round_start", Event_ResetBots);
 	HookEvent("mvm_wave_complete",    Event_ResetBots);
@@ -826,8 +826,6 @@ public Action OnSpawnStartTouch(int iEntity, int iOther)
 	if(iTeam == view_as<int>(TFTeam_Blue) && iOther > 0 && iOther <= MaxClients && GetClientTeam(iOther) == iTeam && !IsFakeClient(iOther))
 	{
 		TF2_AddCondition(iOther, TFCond_UberchargedHidden);
-		TF2_AddCondition(iOther, TFCond_Ubercharged);
-		TF2_AddCondition(iOther, TFCond_UberchargeFading);
 		
 	}
 }
@@ -839,11 +837,7 @@ public Action OnSpawnEndTouch(int iEntity, int iOther)
 	if(iTeam == view_as<int>(TFTeam_Blue) && iOther > 0 && iOther <= MaxClients && GetClientTeam(iOther) == iTeam && !IsFakeClient(iOther))
 	{
 		TF2_RemoveCondition(iOther, TFCond_UberchargedHidden);
-		TF2_RemoveCondition(iOther, TFCond_Ubercharged);
-		TF2_RemoveCondition(iOther, TFCond_UberchargeFading);
 		TF2_AddCondition(iOther, TFCond_UberchargedHidden, 1.0);
-		TF2_AddCondition(iOther, TFCond_Ubercharged, 1.0);
-		TF2_AddCondition(iOther, TFCond_UberchargeFading, 1.0);
 	}
 }
 
@@ -925,7 +919,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	if(IsFakeClient(client))
 		return Plugin_Continue;
 	
-	if(g_bControllingBot[client])
+	if(g_bControllingBot[client] && IsPlayerAlive(client) && (TF2_GetClientTeam(client) == TFTeam_Red || TF2_GetClientTeam(client) == TFTeam_Blue))
 	{
 		SetEntPropFloat(client, Prop_Send, "m_flCloakMeter", 100.0);
 		SetEntProp(client, Prop_Send, "m_nNumHealers", 0);	//All your medics are belong to me!
@@ -935,15 +929,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			if(TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden))
 			{
-				if(buttons & IN_ATTACK)
-				{
-					SetEntPropFloat(iActiveWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.25);
-				}
-				if(buttons & IN_DUCK)
-				{
-					//Disallow crouching in spawn so when you lose control of your bot the bot wont spawn inside ground.
-					buttons &= ~IN_DUCK;
-				}
+				SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);
+				
+				//Disallow crouching in spawn so when you lose control of your bot the bot wont spawn inside ground.
+				buttons &= ~IN_DUCK;
 			}
 
 			if(g_iPlayerAttributes[client] & view_as<int>(AUTOJUMP))
@@ -993,11 +982,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					{
 						SetHudTextParams(-1.0, -0.65, 0.25, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
 						ShowSyncHudText(client, g_hHudReload, "CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON\n \
-															CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON\n \
-															CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON\n \
 															CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON");
 						
-						SetEntPropFloat(iActiveWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.1);
+						SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.1);
 					}
 					else
 					{
@@ -1057,9 +1044,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				GetClientEyeAngles(client, flAng);
 			
 				// Disable the use of the sentry buster's caber
-				int iMelee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
-				if(iMelee > MaxClients) 
-					SetEntPropFloat(iMelee, Prop_Send, "m_flNextPrimaryAttack", 999999.0);
+				SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);
 
 				//Detonate buster if the player is pressing M1 or taunting
 				//Don't detonate buster if client is holding M1 and M2 at same time
