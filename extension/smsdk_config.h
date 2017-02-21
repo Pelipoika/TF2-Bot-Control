@@ -38,12 +38,12 @@
  */
 
 /* Basic information exposed publicly */
-#define SMEXT_CONF_NAME			"RealizeSpyFixer"
+#define SMEXT_CONF_NAME			"Bot Control Extension"
 #define SMEXT_CONF_DESCRIPTION	"i blame valve"
-#define SMEXT_CONF_VERSION		"1337.spy"
-#define SMEXT_CONF_AUTHOR		"Pelipoika"
+#define SMEXT_CONF_VERSION		"9001"
+#define SMEXT_CONF_AUTHOR		"Pelipoika (with modifications by Benoist3012)"
 #define SMEXT_CONF_URL			""
-#define SMEXT_CONF_LOGTAG		"RSF"
+#define SMEXT_CONF_LOGTAG		"BC EXT"
 #define SMEXT_CONF_LICENSE		"GPL"
 #define SMEXT_CONF_DATESTRING	__DATE__
 
@@ -59,7 +59,7 @@
 #define SMEXT_CONF_METAMOD		
 
 /** Enable interfaces you want to use here by uncommenting lines */
-//#define SMEXT_ENABLE_FORWARDSYS
+#define SMEXT_ENABLE_FORWARDSYS
 //#define SMEXT_ENABLE_HANDLESYS
 #define SMEXT_ENABLE_PLAYERHELPERS
 //#define SMEXT_ENABLE_DBMANAGER
