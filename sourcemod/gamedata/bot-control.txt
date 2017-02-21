@@ -5,6 +5,11 @@
 	{
 		"Signatures"
 		{
+			"CBaseEntity::ShouldTransmit"		
+			{		
+				"windows"	"18"		
+				"linux"		"19"		
+			}
 			"CTFBot::LeaveSquad"	//"Squad leader is dead"
 			{
 				"library"	"server"
