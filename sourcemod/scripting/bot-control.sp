@@ -7,6 +7,7 @@
 #include <tf2attributes>
 #include <steamworks>
 #include <dhooks>
+#include <bot-control>
 
 #pragma newdecls required
 
@@ -1568,6 +1569,30 @@ public Action Listener_Build(int client, char[] command, int args)
 	return Plugin_Continue;
 }
 
+//Detours
+
+public Action CTFBotSquad_OnGetLeader(Address pSquad, int& iOriginalLeader)
+{
+	if (0 < iOriginalLeader <= MaxClients && IsFakeClient(iOriginalLeader) && g_bIsControlled[iOriginalLeader])
+	{
+		int iClient = g_iController[iOriginalLeader];
+		iOriginalLeader = iClient;//Your squad belongs to this player now.
+		return Plugin_Changed;
+	}
+	return Plugin_Continue;
+}
+
+public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int& iHealTarget, bool& bOriginalResult)
+{
+	//To-do
+	/*int iOwner = GetEntPropEnt(iMedigun, Prop_Send, "m_hOwnerEntity");
+	if (0 < iOwner <= MaxClients && IsClientInGame(iOwner) && !IsFakeClient(iOwner) && g_bControllingBot[iOwner])
+	{
+		
+	}*/
+	return Plugin_Continue;
+}
+
 stock int TF2_GetObjectCount(int client, TFObjectType type)
 {
 	int iObject = -1, iCount = 0;
@@ -1861,29 +1886,6 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	SetEntProp(client, Prop_Send, "m_nBotSkill",		GetEntProp(iTarget, Prop_Send, "m_nBotSkill"));
 	SetEntProp(client, Prop_Send, "m_bIsMiniBoss",		GetEntProp(iTarget, Prop_Send, "m_bIsMiniBoss"));
 	SetEntProp(client, Prop_Data, "m_bloodColor", 		GetEntProp(iTarget, Prop_Data, "m_bloodColor"));
-	
-	//Med bot fix
-	if(GetEntProp(iTarget, Prop_Send, "m_nNumHealers") > 0)
-	{
-		for(int i = 1; i <= MaxClients; i++)
-		{
-			if(IsClientInGame(i) && IsPlayerAlive(i) && IsFakeClient(i) && TF2_GetClientTeam(i) == TFTeam_Blue && TF2_GetPlayerClass(i) == TFClass_Medic)
-			{
-				int iMedigun = GetPlayerWeaponSlot(i, view_as<int>(TFWeaponSlot_Secondary));
-				
-				if(IsValidEntity(iMedigun))
-				{
-					int iHealTarget = GetEntPropEnt(iMedigun, Prop_Send, "m_hHealingTarget");
-					
-					if(iHealTarget == iTarget)
-					{
-						SDKCall(g_hSDKLeaveSquad, i);
-					}
-				}
-			}
-		}
-	}
-	SDKCall(g_hSDKLeaveSquad, iTarget);
 	
 	if(g_bHasBomb[iTarget])
 	{
