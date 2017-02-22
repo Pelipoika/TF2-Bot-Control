@@ -4,15 +4,19 @@
 #define _botcontrol_included
 
 /**
- * Called whenever the function CTFBotSquad::GetLeader is called.
- * Allows the plugin to fakely change the leader of a bot squad.
+ * Called whenever the function CTFBotSquad::ShouldSquadLeaderWaitForFormation is called.
  */
-forward Action CTFBotSquad_OnGetLeader(Address pSquad, int& iOriginalLeader);
+forward Action CTFBotSquad_ShouldSquadLeaderWaitForFormation(Address pSquad, bool& bOriginalResult);
 
 /**
  * Called whenever the function CWeaponMedigun::AllowedToHealTarget is called.
  */
-forward Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int& iHealTarget, bool& bOriginalResult)
+forward Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget, bool& bOriginalResult);
+
+/**
+ * Called whenever the function CTFBotMedicHeal::SelectPatient is called.
+ */
+forward Action CTFBotMedicHeal_SelectPatient(Address pMedicHeal, int iMedicBot, int& iCurrentPatient);
 
 /**
  * Do not edit below this line!

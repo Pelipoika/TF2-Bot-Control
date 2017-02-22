@@ -92,6 +92,58 @@ enum WeaponRestriction
 #define NUM_ENT_ENTRIES			(1 << NUM_ENT_ENTRY_BITS)
 #define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
 
+#define SOLID_NONE			0	// no solid model
+#define SOLID_BSP			1	// a BSP tree
+#define SOLID_BBOX			2	// an AABB
+#define SOLID_OBB			3	// an OBB (not implemented yet)
+#define SOLID_OBB_YAW		4	// an OBB, constrained so that it can only yaw
+#define SOLID_CUSTOM		5	// Always call into the entity for tests
+#define SOLID_VPHYSICS		6	// solid vphysics object, get vcollide from the model and collide with that
+#define SOLID_LAST			7
+
+
+#define FSOLID_CUSTOMRAYTEST		0x0001	// Ignore solid type + always call into the entity for ray tests
+#define FSOLID_CUSTOMBOXTEST		0x0002	// Ignore solid type + always call into the entity for swept box tests
+#define	FSOLID_NOT_SOLID			0x0004	// Are we currently not solid?
+#define	FSOLID_TRIGGER				0x0008	// This is something may be collideable but fires touch functions
+											// even when it's not collideable (when the FSOLID_NOT_SOLID flag is set)
+#define FSOLID_NOT_STANDABLE		0x0010	// You can't stand on this
+#define FSOLID_VOLUME_CONTENTS		0x0020	// Contains volumetric contents (like water)
+#define FSOLID_FORCE_WORLD_ALIGNED	0x0040	// Forces the collision rep to be world-aligned even if it's SOLID_BSP or SOLID_VPHYSICS
+#define FSOLID_USE_TRIGGER_BOUNDS	0x0080	// Uses a special trigger bounds separate from the normal OBB
+#define FSOLID_ROOT_PARENT_ALIGNED	0x0100	// Collisions are defined in root parent's local coordinate space
+#define FSOLID_TRIGGER_TOUCH_DEBRIS	0x0200	// This trigger will touch debris objects
+
+#define FSOLID_MAX_BITS				10
+
+enum
+{
+	COLLISION_GROUP_NONE  = 0,
+	COLLISION_GROUP_DEBRIS,			// Collides with nothing but world and static stuff
+	COLLISION_GROUP_DEBRIS_TRIGGER, // Same as debris, but hits triggers
+	COLLISION_GROUP_INTERACTIVE_DEBRIS,	// Collides with everything except other interactive debris or debris
+	COLLISION_GROUP_INTERACTIVE,	// Collides with everything except interactive debris or debris
+	COLLISION_GROUP_PLAYER,
+	COLLISION_GROUP_BREAKABLE_GLASS,
+	COLLISION_GROUP_VEHICLE,
+	COLLISION_GROUP_PLAYER_MOVEMENT,  // For HL2, same as Collision_Group_Player, for
+										// TF2, this filters out other players and CBaseObjects
+	COLLISION_GROUP_NPC,			// Generic NPC group
+	COLLISION_GROUP_IN_VEHICLE,		// for any entity inside a vehicle
+	COLLISION_GROUP_WEAPON,			// for any weapons that need collision detection
+	COLLISION_GROUP_VEHICLE_CLIP,	// vehicle clip brush to restrict vehicle movement
+	COLLISION_GROUP_PROJECTILE,		// Projectiles!
+	COLLISION_GROUP_DOOR_BLOCKER,	// Blocks entities not permitted to get near moving doors
+	COLLISION_GROUP_PASSABLE_DOOR,	// Doors that the player shouldn't collide with
+	COLLISION_GROUP_DISSOLVING,		// Things that are dissolving are in this group
+	COLLISION_GROUP_PUSHAWAY,		// Nonsolid on client and server, pushaway in player code
+
+	COLLISION_GROUP_NPC_ACTOR,		// Used so NPCs in scripts ignore the player.
+	COLLISION_GROUP_NPC_SCRIPTED,	// USed for NPCs in scripts that should not collide with each other
+
+	LAST_SHARED_COLLISION_GROUP
+};
+
 #define BUSTER_SND_LOOP			"mvm/sentrybuster/mvm_sentrybuster_loop.wav"
 #define GIANTSCOUT_SND_LOOP		"mvm/giant_scout/giant_scout_loop.wav"
 #define GIANTSOLDIER_SND_LOOP	"mvm/giant_soldier/giant_soldier_loop.wav"
@@ -103,14 +155,23 @@ enum WeaponRestriction
 #define SOUND_DEPLOY_GIANT		"mvm/mvm_deploy_giant.wav"
 #define SOUND_TELEPORT_DELIVER	")mvm/mvm_tele_deliver.wav"
 
+#define FL_EDICT_FULLCHECK	(0<<0)  // call ShouldTransmit() each time, this is a fake flag
+#define FL_EDICT_ALWAYS		(1<<3)	// always transmit this entity
+#define FL_EDICT_DONTSEND	(1<<4)	// don't transmit this entity
+#define FL_EDICT_PVSCHECK	(1<<5)	// always transmit entity, but cull against PVS
+
 Handle g_hHudInfo;
 Handle g_hHudReload;
+
+//Cvars
+ConVar g_cvCTFBotSquadEscortRange;
 
 //SDKCalls
 Handle g_hSdkEquipWearable;
 Handle g_hSDKDispatchParticleEffect;
 Handle g_hSDKPlaySpecificSequence;
 Handle g_hSDKSetMission;
+Handle g_hSDKGetSquadLeader;
 Handle g_hSDKGetMaxClip;
 Handle g_hSDKPickup;
 Handle g_hSDKRemoveObject;
@@ -119,10 +180,12 @@ Handle g_hSDKUpdateSkin;
 //DHooks
 Handle g_hIsValidTarget;
 Handle g_hCTFPlayerShouldGib;
+Handle g_hCCaptureFlagPickUp;
 Handle g_hShouldTransmit;
 
 //Offsets
 int g_iOffsetWeaponRestrictions;
+int g_iOffsetSquad;
 int g_iOffsetBotAttribs;
 int g_iOffsetAutoJumpMin;
 int g_iOffsetAutoJumpMax;
@@ -218,6 +281,12 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);	//MissionType
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//StartSound
 	if ((g_hSDKSetMission = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::SetMission signature!"); 
+	
+	//This call is used to retrieve the leader of a squad
+	StartPrepSDKCall(SDKCall_Raw);
+	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBotSquad::GetLeader");
+	PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+	if ((g_hSDKGetSquadLeader = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBotSquad::GetLeader signature!");
 
 	//This call will play a particle effect
 	StartPrepSDKCall(SDKCall_Static);
@@ -248,11 +317,16 @@ public void OnPluginStart()
 	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMax        += GameConfGetOffset(hConf, "m_flAutoJumpMax");
 	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))			g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
 	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))			g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
+	g_iOffsetSquad = g_iOffsetWeaponRestrictions+GameConfGetOffset(hConf, "m_Squad");
 	
 	int iOffset = GameConfGetOffset(hConf, "CTFPlayer::ShouldGib");
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::ShouldGib");
 	g_hCTFPlayerShouldGib = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFPlayer_ShouldGib);
 	DHookAddParam(g_hCTFPlayerShouldGib, HookParamType_ObjectPtr, -1, DHookPass_ByRef);
+	
+	iOffset = GameConfGetOffset(hConf, "CCaptureFlag::PickUp");
+	g_hCCaptureFlagPickUp = DHookCreate(iOffset, HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, CCaptureFlag_PickUp);
+	DHookAddParam(g_hCCaptureFlagPickUp, HookParamType_CBaseEntity);
 	
 	iOffset = GameConfGetOffset(hConf, "CBaseEntity::ShouldTransmit");
 	g_hShouldTransmit = DHookCreate(iOffset, HookType_Entity, ReturnType_Int, ThisPointer_CBaseEntity, Hook_EntityShouldTransmit);
@@ -269,6 +343,9 @@ public void OnPluginStart()
 	g_iCondSourceOffs = offset + COND_SOURCE_OFFS;
 	
 	delete hConf;
+	
+	//ConVars
+	g_cvCTFBotSquadEscortRange = FindConVar("tf_bot_squad_escort_range");
 	
 	g_hHudInfo = CreateHudSynchronizer();
 	g_hHudReload = CreateHudSynchronizer();
@@ -437,6 +514,25 @@ public MRESReturn CTFPlayer_ShouldGib(int pThis, Handle hReturn, Handle hParams)
 	return MRES_Ignored;
 }
 
+public MRESReturn CCaptureFlag_PickUp(int iFlag, Handle hReturn, Handle hParams)
+{
+	if(GameRules_GetProp("m_bPlayingMannVsMachine") && !DHookIsNullParam(hParams, 1))
+	{
+		int iTarget = DHookGetParam(hParams, 1);
+		if (g_bControllingBot[iTarget])
+		{
+			TF2_SetFakeClient(iTarget, false);//Avoid a crash
+			RequestFrame(Frame_FlagPickUp, iTarget);
+		}
+	}
+}
+
+public void Frame_FlagPickUp(int iClient)
+{
+	if (g_bControllingBot[iClient])
+		TF2_SetFakeClient(iClient, true);
+}
+
 public MRESReturn Hook_EntityShouldTransmit(int pThis, Handle hReturn, Handle hParams)
 {
 	if(GameRules_GetProp("m_bPlayingMannVsMachine"))
@@ -488,8 +584,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if(StrEqual(classname, "item_teamflag"))
 	{
-	//	SDKHook(entity, SDKHook_StartTouch, OnFlagTouch);
-	//	SDKHook(entity, SDKHook_Touch, OnFlagTouch);
+		DHookEntity(g_hCCaptureFlagPickUp, false, entity);
 	}
 	else if(g_bBlockRagdoll && StrEqual(classname, "tf_ragdoll"))
 	{
@@ -1514,31 +1609,102 @@ public Action Listener_Build(int client, char[] command, int args)
 	
 	return Plugin_Continue;
 }
-		
+
 //Detours
-public Action CTFBotSquad_OnGetLeader(Address pSquad, int& iOriginalLeader)
+public Action CTFBotSquad_ShouldSquadLeaderWaitForFormation(Address pSquad, bool& bOriginalResult)
 {
-//	PrintToServer("CTFBotSquad::GetLeader pSquad %x iOriginalLeader %i", pSquad, iOriginalLeader);
-	
-	if (0 < iOriginalLeader <= MaxClients && IsFakeClient(iOriginalLeader) && g_bIsControlled[iOriginalLeader])
+	if (!bOriginalResult) return Plugin_Continue;//Not our problem
+	//PrintToChatAll("one squad is waiting for formation");
+	int iLeader = TF2_GetSquadLeader(pSquad);
+	if (iLeader <= 0 || iLeader > MaxClients)
 	{
-		int iClient = g_iController[iOriginalLeader];
-		iOriginalLeader = iClient; //Your squad belongs to this player now.
-		
+		//PrintToChatAll("invalid leader wtf");
+		return Plugin_Continue;//WTF? That squad has no leader why wait in the first place?
+	}
+	
+	if (g_bControllingBot[iLeader])//If the leader is the player then the squad should never wait
+	{
+		//PrintToChatAll("the leader is a player don't wait for formation");
+		bOriginalResult = false;
 		return Plugin_Changed;
 	}
 	
+	//PrintToChatAll("calculating if we should wait...");
+	float vecLeaderPos[3];
+	GetClientAbsOrigin(iLeader, vecLeaderPos);
+	
+	float flMaxEscortRange = g_cvCTFBotSquadEscortRange.FloatValue;//Beyond that distance the normal game's code doesn't make the squad wait the bot(it has to catch up on its own)
+	float flMinEscortRange = 230.0;//I got that value from my multiple tests
+	
+	bool bBotOutOfEscort = false, bOneBotInSquadControlled = false;
+	//Find out if the "bot" out of the escort is a controlled bot or not
+	for (int iClient = 1; iClient <= MaxClients; iClient++)
+	{
+		if (!IsClientInGame(iClient)) continue;
+		if (iClient == iLeader) continue;
+		
+		if (IsFakeClient(iClient) && TF2_GetBotSquad(iClient) == pSquad)
+		{
+			if (!g_bIsControlled[iClient] && !bBotOutOfEscort)
+			{
+				float vecPos[3];
+				GetClientAbsOrigin(iClient, vecPos);
+				bBotOutOfEscort = (flMinEscortRange < GetVectorDistance(vecPos,vecLeaderPos) < flMaxEscortRange);
+				//if (bBotOutOfEscort) PrintToChatAll("found %N out of escort",iClient);
+			}
+			if (g_bIsControlled[iClient])
+				bOneBotInSquadControlled = true;
+		}
+	}
+	if (!bOneBotInSquadControlled)
+	{
+		//PrintToChatAll("the squad doesn't have a controlled bot, so yes wait");
+		return Plugin_Continue;
+	}
+	if (bBotOutOfEscort)
+	{
+		//PrintToChatAll("the squad has a controlled bot but a real bot is out of the escort wait for it");
+		return Plugin_Continue;
+	}
+	//PrintToChatAll("the controlled bot triggered a false positive, don't wait");
+	//Never ever wait for the player
+	bOriginalResult = false;
+	return Plugin_Changed;
+}
+
+public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget, bool& bOriginalResult)
+{
+	int iOwner = GetEntPropEnt(iMedigun, Prop_Send, "m_hOwnerEntity");
+	if (iOwner > 0 && iOwner <= MaxClients && IsClientInGame(iOwner))
+	{
+		if (IsFakeClient(iOwner) && g_bIsControlled[iOwner])
+		{
+			bOriginalResult = false;
+			return Plugin_Changed;
+		}
+		if (IsFakeClient(iOwner)) return Plugin_Continue;
+		if (!g_bControllingBot[iOwner]) return Plugin_Continue;
+		
+		int iBot = GetClientOfUserId(g_iPlayersBot[iOwner]);
+		if (iBot > 0 && iBot <= MaxClients && IsPlayerAlive(iBot))
+		{
+			int iLeader = TF2_GetBotSquadLeader(iBot);
+			if (iLeader > 0 && iLeader <= MaxClients && IsClientInGame(iLeader) && IsPlayerAlive(iLeader) && iLeader != iBot)//If the player is controlling the leader then no need to restrict his heal target
+			{
+				bOriginalResult = (iHealTarget == iLeader);
+				return Plugin_Changed;
+			}
+		}
+	}
 	return Plugin_Continue;
 }
 
-public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int& iHealTarget, bool& bOriginalResult)
+public Action CTFBotMedicHeal_SelectPatient(Address pMedicHeal, int iMedicBot, int& iCurrentPatient)
 {
-	//To-do
-	/*int iOwner = GetEntPropEnt(iMedigun, Prop_Send, "m_hOwnerEntity");
-	if (0 < iOwner <= MaxClients && IsClientInGame(iOwner) && !IsFakeClient(iOwner) && g_bControllingBot[iOwner])
-	{
-		
-	}*/
+	int iLeader = TF2_GetBotSquadLeader(iMedicBot);
+	if (iMedicBot == iLeader) return Plugin_Continue;
+	if (iLeader <= 0 || iLeader > MaxClients || !IsClientInGame(iLeader) || !IsPlayerAlive(iLeader) || IsFakeClient(iLeader)) return Plugin_Continue;
+	iCurrentPatient = iLeader;
 	return Plugin_Continue;
 }
 
@@ -1702,7 +1868,14 @@ stock void TF2_RestoreBot(int client)
 		{
 			int iBomb = TF2_DropBomb(client);
 			if(IsValidEntity(iBomb))
+			{
 				TF2_PickupBomb(iBot, iBomb);
+			}
+		}
+		
+		if(TF2_IsGiant(client))
+		{
+			SetEntProp(iBot, Prop_Send, "m_bIsMiniBoss", 1);
 		}
 		
 		if(TF2_GetPlayerClass(iBot) == TFClass_Engineer)
@@ -1712,6 +1885,32 @@ stock void TF2_RestoreBot(int client)
 		
 		if(g_bIsSentryBuster[client])
 			TF2_DetonateBuster(client);
+		
+		//Copy medigun data
+		if(TF2_GetPlayerClass(iBot) == TFClass_Medic)
+		{
+			int tMedigun = GetPlayerWeaponSlot(client, view_as<int>(TFWeaponSlot_Secondary));
+			int pMedigun = GetPlayerWeaponSlot(iBot, view_as<int>(TFWeaponSlot_Secondary));
+			
+			if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun))
+			{
+				SetEntPropFloat(pMedigun, Prop_Send, "m_flChargeLevel",	GetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel"));	
+				SetEntPropEnt(pMedigun, Prop_Send, "m_hHealingTarget",	GetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget"));
+				SetEntProp(pMedigun, Prop_Send, "m_nChargeResistType",	GetEntProp(tMedigun, Prop_Send, "m_nChargeResistType"));	
+				SetEntProp(pMedigun, Prop_Send, "m_bAttacking",			GetEntProp(tMedigun, Prop_Send, "m_bAttacking"));	
+				SetEntProp(pMedigun, Prop_Send, "m_bHealing",			GetEntProp(tMedigun, Prop_Send, "m_bHealing"));	
+				SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
+			}
+		}
+		
+		TF2_RemoveCondition(iBot, TFCond_UberchargedCanteen);
+		
+		AcceptEntityInput(iBot,"ClearParent");
+		SetEntProp(iBot, Prop_Send, "m_nSolidType", SOLID_BBOX);
+		SetEntProp(iBot, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
+		SetEntProp(iBot, Prop_Send, "m_usSolidFlags", FSOLID_NOT_STANDABLE);
+		SetEntPropFloat(iBot, Prop_Send, "m_flModelScale", GetEntPropFloat(client, Prop_Send, "m_flModelScale"));
+		SetEntPropFloat(iBot, Prop_Send, "m_flRageMeter", GetEntPropFloat(client, Prop_Send, "m_flRageMeter"));
 	
 		float flPos[3], flAng[3], flVelocity[3];
 		GetClientAbsOrigin(client, flPos);
@@ -1839,6 +2038,23 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	SetEntProp(client, Prop_Send, "m_bIsMiniBoss",		GetEntProp(iTarget, Prop_Send, "m_bIsMiniBoss"));
 	SetEntProp(client, Prop_Data, "m_bloodColor", 		GetEntProp(iTarget, Prop_Data, "m_bloodColor"));
 	
+	if(GetEntProp(iTarget, Prop_Send, "m_nNumHealers") > 0)//Force any medic bots/players that were healing this bot to heal the player instead
+	{
+		for(int i = 1; i <= MaxClients; i++)
+		{
+			if(IsClientInGame(i) && IsPlayerAlive(i) && TF2_GetClientTeam(i) == TFTeam_Blue && TF2_GetPlayerClass(i) == TFClass_Medic)
+			{		
+				int iMedigun = GetPlayerWeaponSlot(i, view_as<int>(TFWeaponSlot_Secondary));
+				if(IsValidEntity(iMedigun))		
+				{
+					int iHealTarget = GetEntPropEnt(iMedigun, Prop_Send, "m_hHealingTarget");
+					if(iHealTarget == iTarget)
+						SetEntPropEnt(iMedigun, Prop_Send, "m_hHealingTarget", client);
+				}
+			}
+		}
+	}
+	
 	//Set gatebot on player if target is gatebot
 	if(g_bIsGateBot[iTarget])
 	{
@@ -1868,26 +2084,6 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 			TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass), iDisguiseTarget);
 		else if(iDisguiseClass > 0)
 			TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass));		
-	}
-	
-	//Start the engines
-	if(TF2_IsGiant(iTarget))
-	{
-		if(g_bIsSentryBuster[client]) 
-		{
-			EmitSoundToAll(BUSTER_SND_LOOP, client, SNDCHAN_STATIC, SNDLEVEL_TRAIN, _, 1.0);
-		}
-		else
-		{	
-			switch(TF2_GetPlayerClass(iTarget))
-			{
-				case TFClass_Scout:		EmitSoundToAll(GIANTSCOUT_SND_LOOP,	  client, SNDCHAN_STATIC, SNDLEVEL_SCREAMING, _, 0.3);
-				case TFClass_Soldier:	EmitSoundToAll(GIANTSOLDIER_SND_LOOP, client, SNDCHAN_STATIC, SNDLEVEL_MINIBIKE, _, 0.7);
-				case TFClass_DemoMan:	EmitSoundToAll(GIANTDEMOMAN_SND_LOOP, client, SNDCHAN_STATIC, SNDLEVEL_MINIBIKE, _, 0.7);
-				case TFClass_Heavy:		EmitSoundToAll(GIANTHEAVY_SND_LOOP,	  client, SNDCHAN_STATIC, SNDLEVEL_MINIBIKE, _, 0.8);
-				case TFClass_Pyro:		EmitSoundToAll(GIANTPYRO_SND_LOOP,	  client, SNDCHAN_STATIC, SNDLEVEL_MINIBIKE, _, 0.8);
-			}
-		}
 	}
 	
 	TF2_RemoveAllConditions(client);
@@ -1937,13 +2133,27 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	SetEntData(client, g_iOffsetMissionBot, 	1, _, true);	//Makes player death not decrement wave bot count
 	SetEntData(client, g_iOffsetSupportLimited, 0, _, true);	//Makes player death not decrement wave bot count
 	
-	//Teleport player to bots position and teleport bot away from anyones view
+	//Teleport player to bots position
 	float flVelocity[3];
 	GetEntPropVector(iTarget, Prop_Data, "m_vecVelocity", flVelocity);
 	
-	SetEntityMoveType(iTarget, MOVETYPE_NONE);
 	TeleportEntity(client, flPos, flAng, flVelocity);
-	TeleportEntity(iTarget, view_as<float>({0.0, 0.0, 9999.0}), NULL_VECTOR, NULL_VECTOR);
+	
+	flPos[2] += 60.0;
+	SetEntPropFloat(iTarget, Prop_Send, "m_flModelScale", 0.000001);
+	SetEntProp(iTarget, Prop_Send, "m_bIsMiniBoss", 0);
+	SetEntPropFloat(iTarget, Prop_Send, "m_flRageMeter",0.0);
+	
+	TF2_AddCondition(iTarget, TFCond_UberchargedCanteen, -1.0);//In case the mvm logic decides to slay the bot
+	SetEntityMoveType(iTarget, MOVETYPE_NONE);
+	TeleportEntity(iTarget, flPos, NULL_VECTOR, NULL_VECTOR);
+	
+	SetVariantString("!activator");
+	AcceptEntityInput(iTarget,"SetParent",client);
+	
+	SetEntProp(iTarget, Prop_Send, "m_nSolidType", SOLID_NONE);
+	SetEntProp(iTarget, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_DEBRIS);
+	SetEntProp(iTarget, Prop_Send, "m_usSolidFlags", FSOLID_NOT_SOLID);
 
 	g_iPlayersBot[client] 		= GetClientUserId(iTarget);
 	g_iController[iTarget]		= GetClientUserId(client);
@@ -1996,6 +2206,8 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 				SetEntProp(pMedigun, Prop_Send, "m_bAttacking",			GetEntProp(tMedigun, Prop_Send, "m_bAttacking"));	
 				SetEntProp(pMedigun, Prop_Send, "m_bHealing",			GetEntProp(tMedigun, Prop_Send, "m_bHealing"));	
 				SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
+				SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0);//Hide the medigun effect
+				SetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget", -1);//Remove the medigun beam
 			}
 		}
 		
@@ -2393,6 +2605,29 @@ stock int TF2_FindTeleNearestToBombHole()
 	}
 	
 	return iBestEntity;
+}
+
+stock Address TF2_GetBotSquad(int iBot)
+{
+	if (iBot > 0 && iBot <= MaxClients && IsFakeClient(iBot))
+		return view_as<Address>(GetEntData(iBot, g_iOffsetSquad));
+	return Address_Null;
+}
+
+stock int TF2_GetSquadLeader(Address pSquad)
+{
+	int iLeader = SDKCall(g_hSDKGetSquadLeader, pSquad);
+	if (iLeader > 0 && iLeader <= MaxClients && IsFakeClient(iLeader) && g_bIsControlled[iLeader])
+		return GetClientOfUserId(g_iController[iLeader]);
+	return iLeader;
+}
+
+stock int TF2_GetBotSquadLeader(int iBot)
+{
+	Address pSquad = TF2_GetBotSquad(iBot);
+	if (pSquad != Address_Null)
+		return TF2_GetSquadLeader(pSquad);
+	return -1;
 }
 
 stock void TF2_TakeOverBuildings(int client, int newClient)

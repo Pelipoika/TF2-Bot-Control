@@ -95,6 +95,18 @@
 				"windows"	"\x8B\x51\x18\x83\xFA\xFF\x74\x1D\xA1\x2A\x2A\x2A\x2A\x8B\xCA\x81\xE1\xFF\x0F\x00\x00\xC1\xEA\x0C\x03\xC9\x39\x54\xC8\x08\x75\x2A\x8B\x44\xC8\x04"
 				"linux"		""
 			}
+			"CTFBotSquad::ShouldSquadLeaderWaitForFormation"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x51\x8B\xD1\x53\x2A\x2A\x2A\x2A\x2A\x89"
+				"linux"		""
+			}
+			"CTFBotMedicHeal::SelectPatient"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x2A\x2A\x8B\x5D\x2A\x56\x57\x6A\x00\x68\x2A\x2A\x2A\x2A\x68\x2A\x2A\x2A\x2A\x89"
+				"linux"		""
+			}
 			"CWeaponMedigun::AllowedToHealTarget"
 			{
 				"library"	"server"
@@ -143,6 +155,11 @@
 			{
 				"windows"	"372"
 				"linux"		"368"
+			}
+			"m_Squad" //m_nWeaponRestrict + 28
+			{
+				"windows"	"28"
+				"linux"		"28"
 			}
 			"m_nBotAttrs"		//https://github.com/sigsegv-mvm/mvm-reversed/blob/508dc9459f54033a59207dab089c18285837b757/server/tf/bot/behavior/tf_bot_scenario_monitor.cpp#L135 "%3.2f: %s: Gametype is CP, but I can't"
 			{
