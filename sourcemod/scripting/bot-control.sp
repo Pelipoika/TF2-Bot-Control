@@ -1313,10 +1313,6 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 		
 		if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) != TFClass_Spy)
 		{
-			//Might need to happen even later.
-			if(!IsFakeClient(client)) 
-				SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));			
-			
 			//Accessing m_nBotAttribs on players is dangerous.
 			int iBotAttrs = IsFakeClient(client) ? GetEntData(client, g_iOffsetBotAttribs) : g_iPlayerAttributes[client];
 			if(!(iBotAttrs & view_as<int>(TELEPORTTOHINT)))
@@ -1799,12 +1795,14 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Set up player
 	TF2_SetFakeClient(client, true);
 	TF2_ChangeClientTeam(client, TF2_GetClientTeam(iTarget));
+	TF2_SetFakeClient(client, false);
 	TF2_SetPlayerClass(client, TF2_GetPlayerClass(iTarget));
 	TF2_RespawnPlayer(client);
 	TF2_RegeneratePlayer(client);
 	TF2_RemoveAllWearables(client);
 	TF2Attrib_RemoveAll(client);
 	TF2Attrib_ClearCache(client);
+	TF2_SetFakeClient(client, true);
 	
 	//New hot technology
 	g_flControlEndTime[client] = GetGameTime() + 35.0;
@@ -1861,22 +1859,6 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 		TF2_AddCondition(iTarget, TFCond_Taunting, 5.0);
 	}
 	
-	//Copy medigun data
-	if(TF2_GetPlayerClass(iTarget) == TFClass_Medic)
-	{
-		int tMedigun = GetPlayerWeaponSlot(iTarget, view_as<int>(TFWeaponSlot_Secondary));
-		int pMedigun = GetPlayerWeaponSlot(client, view_as<int>(TFWeaponSlot_Secondary));
-		
-		if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun))
-		{
-			SetEntPropFloat(pMedigun, Prop_Send, "m_flChargeLevel",	GetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel"));	
-			SetEntPropEnt(pMedigun, Prop_Send, "m_hHealingTarget",	GetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget"));
-			SetEntProp(pMedigun, Prop_Send, "m_nChargeResistType",	GetEntProp(tMedigun, Prop_Send, "m_nChargeResistType"));	
-			SetEntProp(pMedigun, Prop_Send, "m_bAttacking",			GetEntProp(tMedigun, Prop_Send, "m_bAttacking"));	
-			SetEntProp(pMedigun, Prop_Send, "m_bHealing",			GetEntProp(tMedigun, Prop_Send, "m_bHealing"));	
-			SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
-		}
-	}
 	if(TF2_GetPlayerClass(iTarget) == TFClass_Spy)
 	{
 		int iDisguiseClass	= GetEntProp(iTarget, Prop_Send, "m_nDisguiseClass");
@@ -1987,18 +1969,40 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 		
 		if(TF2_HasBomb(iBot))
 		{
-			//Copy bomb carrier upgrade level
-			int iResource = FindEntityByClassname(-1, "tf_objective_resource");
-			g_iFlagCarrierUpgradeLevel[client] = GetEntProp(iResource, Prop_Send, "m_nFlagCarrierUpgradeLevel");
-			g_flNextBombUpgradeTime[client] = GetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime");	
-			
 			int iBomb = TF2_DropBomb(iBot);
 			
 			if(IsValidEntity(iBomb))
 			{
 				TF2_PickupBomb(client, iBomb);
 			}
+			
+			//Copy bomb carrier upgrade level
+			int iResource = FindEntityByClassname(-1, "tf_objective_resource");
+			g_iFlagCarrierUpgradeLevel[client] = GetEntProp(iResource, Prop_Send, "m_nFlagCarrierUpgradeLevel");
+			g_flNextBombUpgradeTime[client] = GetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime");	
 		}
+		
+		//Copy medigun data
+		if(TF2_GetPlayerClass(iBot) == TFClass_Medic)
+		{
+			int tMedigun = GetPlayerWeaponSlot(iBot, view_as<int>(TFWeaponSlot_Secondary));
+			int pMedigun = GetPlayerWeaponSlot(client, view_as<int>(TFWeaponSlot_Secondary));
+			
+			if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun))
+			{
+				SetEntPropFloat(pMedigun, Prop_Send, "m_flChargeLevel",	GetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel"));	
+				SetEntPropEnt(pMedigun, Prop_Send, "m_hHealingTarget",	GetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget"));
+				SetEntProp(pMedigun, Prop_Send, "m_nChargeResistType",	GetEntProp(tMedigun, Prop_Send, "m_nChargeResistType"));	
+				SetEntProp(pMedigun, Prop_Send, "m_bAttacking",			GetEntProp(tMedigun, Prop_Send, "m_bAttacking"));	
+				SetEntProp(pMedigun, Prop_Send, "m_bHealing",			GetEntProp(tMedigun, Prop_Send, "m_bHealing"));	
+				SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
+			}
+		}
+		
+		SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
+		
+		Handle msg = StartMessageOne("PlayerPickupWeapon", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
+		if (msg != null) EndMessage();
 	}
 
 	return Plugin_Handled;
