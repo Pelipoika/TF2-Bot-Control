@@ -341,6 +341,14 @@ public void OnPluginStart()
 	
 	delete hConf;
 	
+	int iEnt = -1;
+	while ((iEnt = FindEntityByClassname(iEnt, "*")) != -1)
+	{
+		char sClassName[64];
+		GetEntityClassname(iEnt, sClassName, sizeof(sClassName));
+		OnEntityCreated(iEnt, sClassName);
+	}
+	
 	//ConVars
 	g_cvCTFBotSquadEscortRange = FindConVar("tf_bot_squad_escort_range");
 	
@@ -372,7 +380,9 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_joinbrobot", Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_robot",      Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_randombot",  Command_ToggleRandomPicker);
-
+	
+	RegConsoleCmd("sm_debugbot",   Command_Debug);
+	
 	for(int client = 1; client <= MaxClients; client++)
 		if(IsClientInGame(client))
 			OnClientPutInServer(client);
@@ -464,6 +474,88 @@ public void OnClientPutInServer(int client)
 	DHookEntity(g_hIsValidTarget,               true, client);
 	
 	SDKHook(client, SDKHook_SetTransmit, Hook_SpyTransmit);
+}
+
+public Action Command_Debug(int client, int args)
+{
+	if(client > 0 && IsClientInGame(client))
+	{
+		int iTarget = client;
+		
+		if (TF2_GetClientTeam(client) == TFTeam_Spectator)
+		{
+			int iObserved = GetEntPropEnt(client, Prop_Data, "m_hObserverTarget");
+			if(iObserved > 0 && iObserved <= MaxClients && IsClientInGame(iObserved))
+			{
+				iTarget = iObserved;
+			}
+		}
+		
+		PrintToConsole(client, "\n----- \"%N\" #%i (%i) --------", iTarget, GetClientUserId(iTarget), iTarget);
+		
+		PrintToConsole(client, "IsFakeClient = %i", IsFakeClient(iTarget));
+		
+		PrintToConsole(client, "g_iPlayersBot = %i", GetClientOfUserId(g_iPlayersBot[iTarget]));
+		PrintToConsole(client, "g_bControllingBot = %i", g_bControllingBot[iTarget]);
+		PrintToConsole(client, "g_bIsControlled = %i", g_bIsControlled[iTarget]);
+		PrintToConsole(client, "g_iController = %i", GetClientOfUserId(g_iController[iTarget]));
+		PrintToConsole(client, "g_bIsGateBot = %i", g_bIsGateBot[iTarget]);
+		PrintToConsole(client, "g_bIsSentryBuster = %i", g_bIsSentryBuster[iTarget]);
+		PrintToConsole(client, "g_bSkipInventory = %i", g_bSkipInventory[iTarget]);
+		PrintToConsole(client, "g_bCanPlayAsBot = %i", g_bCanPlayAsBot[iTarget]);
+		
+		PrintToConsole(client, "g_flCooldownEndTime = %f", g_flCooldownEndTime[iTarget]);
+		PrintToConsole(client, "g_flControlEndTime = %f", g_flControlEndTime[iTarget]);
+		PrintToConsole(client, "g_flSpawnTime = %f", g_flSpawnTime[iTarget]);
+		
+		PrintToConsole(client, "g_flNextJumpTime = %f", g_flNextJumpTime[iTarget]);
+		PrintToConsole(client, "g_flAutoJumpMin = %f", g_flAutoJumpMin[iTarget]);
+		PrintToConsole(client, "g_flAutoJumpMax = %f", g_flAutoJumpMax[iTarget]);
+		PrintToConsole(client, "g_bReloadingBarrage = %i", g_bReloadingBarrage[iTarget]);
+		PrintToConsole(client, "g_iPlayerAttributes = %i", g_iPlayerAttributes[iTarget]);
+		
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if(IsClientInGame(i))
+			{
+				int iMyBot = GetClientOfUserId(g_iPlayersBot[i]);
+				if (iMyBot == iTarget)
+				{
+					PrintToConsole(client, "-> -> \"%N\"s g_iPlayersBot is set to the bot you are debugging \"%N\"", iMyBot, iTarget);
+				}
+			}
+		}
+		
+		int iGun = -1;
+		while((iGun = FindEntityByClassname(iGun, "tf_weapon_medigun")) != -1)
+		{
+			int iHealTarget = GetEntPropEnt(iGun, Prop_Send, "m_hHealingTarget");
+			int iHealTarget2 = GetEntPropEnt(iGun, Prop_Data, "m_hHealingTarget");
+			
+			if(iHealTarget == iTarget)
+				PrintToConsole(client, "1 medigun %i is healing %N", iGun, iTarget);
+			else if(iHealTarget2 == iTarget)
+				PrintToConsole(client, "2 medigun %i is healing %N", iGun, iTarget);
+		}
+		
+		PrintToConsole(client, "------------------------ END ---------------------\n");
+		
+		/*
+		//Players bot & player data
+		float g_flNextInstructionTime[MAXPLAYERS+1];
+		bool g_bRandomlyChooseBot[MAXPLAYERS+1];
+		
+		//Bot data
+		bool g_bDeploying[MAXPLAYERS+1];
+		
+		//Bomb data
+		int g_iFlagCarrierUpgradeLevel[MAXPLAYERS+1];
+		float g_flBombDeployTime[MAXPLAYERS+1];
+		float g_flNextBombUpgradeTime[MAXPLAYERS+1];
+		*/
+	}
+	
+	return Plugin_Handled;
 }
 
 public MRESReturn IsValidTarget(int pThis, Handle hReturn, Handle hParams)
@@ -642,8 +734,8 @@ public Action SentryVision_OnThink(int iSentryGlow, int iClient)
 		if (bCarrying)
 		{
 			int iCarriedObject = GetEntPropEnt(iParent, Prop_Send, "m_hCarriedObject");
-			if (iCarriedObject > MaxClients)
-				iRefCarriedObjects[iParent] = EntIndexToEntRef(iCarriedObject);//Save the building's index object, very important so we don't blindy loop across every sentry guns once it's placed, and end up setting 2 glows on the same sentry (i.e 2 glows on an engie's mini-sentry)
+			if (iCarriedObject > MaxClients) //Save the building's index object, very important so we don't blindy loop across every sentry guns once it's placed, and end up setting 2 glows on the same sentry (i.e 2 glows on an engie's mini-sentry)
+				iRefCarriedObjects[iParent] = EntIndexToEntRef(iCarriedObject);
 			else
 				AcceptEntityInput(iSentryGlow, "Kill");
 		}
@@ -694,7 +786,9 @@ public Action SentryVision_OnThink(int iSentryGlow, int iClient)
 	else //I don't have any parent, how de fuk is glow still alive? Safe check, kill.
 		AcceptEntityInput(iSentryGlow, "Kill");
 
-	if (0 < iClient <= MaxClients && IsClientInGame(iClient) && g_bIsSentryBuster[iClient]) return Plugin_Continue;//Allow the sentry buster to see the glow.
+	if (0 < iClient <= MaxClients && IsClientInGame(iClient) && g_bIsSentryBuster[iClient]) 
+		return Plugin_Continue;//Allow the sentry buster to see the glow.
+		
 	return Plugin_Handled;//Do not allow other players to see it.
 }
 
@@ -877,6 +971,7 @@ public Action OnSpawnEndTouch(int iEntity, int iOther)
 	if(iTeam == view_as<int>(TFTeam_Blue) && iOther > 0 && iOther <= MaxClients && GetClientTeam(iOther) == iTeam && !IsFakeClient(iOther))
 	{
 		TF2_RemoveCondition(iOther, TFCond_UberchargedHidden);
+		
 		if (TF2_HasBomb(iOther))
 		{
 			switch(g_iFlagCarrierUpgradeLevel[iOther])
@@ -888,8 +983,10 @@ public Action OnSpawnEndTouch(int iEntity, int iOther)
 				case 2: 
 					g_flNextBombUpgradeTime[iOther] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade"));
 			}
+			
 			UpdateBombHud(GetClientUserId(iOther));//The bomb hud needs to be updated BEFORE we add again the TFCond_UberchargedHidden condition
 		}
+		
 		TF2_AddCondition(iOther, TFCond_UberchargedHidden, 1.0);
 	}
 }
@@ -1062,7 +1159,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			ShowSyncHudText(client, g_hHudInfo, "Playing as %N", iBot);
 			
 			//Instruction
-			if (g_flNextInstructionTime[client] <= GetGameTime())
+		/*	if (g_flNextInstructionTime[client] <= GetGameTime())
 			{
 				if (TF2_HasBomb(client))
 				{
@@ -1093,6 +1190,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						}
 						else
 							Format(sMessage, sizeof(sMessage), "Protect your squad leader!");
+							
 						if (strcmp(sMessage,"") != 0)
 							Annotate(vecLeaderPos, client, sMessage, INSTRUCTION_LEADER, 6.0, iLeader);
 					}
@@ -1125,8 +1223,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						}
 					}
 				}
-				g_flNextInstructionTime[client] = GetGameTime()+30.0;//To-Do make cvar for this
-			}
+				
+				g_flNextInstructionTime[client] = GetGameTime() + 30.0; //To-Do make cvar for this
+			}*/
 			
 			if(TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden))
 			{
@@ -1677,6 +1776,7 @@ public Action Listener_Build(int client, char[] command, int args)
 	return Plugin_Continue;
 }
 
+/*
 //Detours
 public Action CTFBotSquad_ShouldSquadLeaderWaitForFormation(Address pSquad, bool& bOriginalResult)
 {
@@ -1748,17 +1848,24 @@ public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget
 			}
 		}
 	}
+	
 	return Plugin_Continue;
 }
 
 public Action CTFBotMedicHeal_SelectPatient(Address pMedicHeal, int iMedicBot, int& iCurrentPatient)
 {
 	int iLeader = TF2_GetBotSquadLeader(iMedicBot);
-	if (iMedicBot == iLeader) return Plugin_Continue;
-	if (iLeader <= 0 || iLeader > MaxClients || !IsClientInGame(iLeader) || !IsPlayerAlive(iLeader) || IsFakeClient(iLeader)) return Plugin_Continue;
-	iCurrentPatient = iLeader;//Always force the medic to go for his leader (kinda useless with our current squad leader management, if CTFBotMedicHeal::SelectPatient signature breaks the mod should still run fine)
+	if (iMedicBot == iLeader) 
+		return Plugin_Continue;
+		
+	if (iLeader <= 0 || iLeader > MaxClients || !IsClientInGame(iLeader) || !IsPlayerAlive(iLeader) || IsFakeClient(iLeader)) 
+		return Plugin_Continue;
+		
+	//Always force the medic to go for his leader (kinda useless with our current squad leader management, if CTFBotMedicHeal::SelectPatient signature breaks the mod should still run fine)
+	iCurrentPatient = iLeader;
+	
 	return Plugin_Continue;
-}
+}*/
 
 stock int TF2_GetObjectCount(int client, TFObjectType type)
 {
@@ -1926,9 +2033,10 @@ stock void TF2_RestoreBot(int client)
 	int iBot = GetClientOfUserId(g_iPlayersBot[client]);
 	if(iBot > 0 && IsFakeClient(iBot))
 	{
+		SDKUnhook(iBot, SDKHook_SetTransmit, Hook_ControlledBotTransmit);
+		
 		if(TF2_HasBomb(client))
 		{
-			SDKUnhook(iBot, SDKHook_SetTransmit, Hook_ControlledBotTransmit);
 			int iBomb = TF2_DropBomb(client);
 			
 			if(IsValidEntity(iBomb))
@@ -2105,19 +2213,24 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	if(StrContains(strModel, "bot_sentry_buster.mdl") != -1)
 	{
 		SDKCall(g_hSDKSetMission, iTarget, NOMISSION, 0);
+		
 		g_bIsSentryBuster[client] = true;
+		
 		TF2Attrib_SetByName(client, "cannot pick up intelligence", 1.0);
+		
+		//A little delay
+		SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 1.25);
 	}
 	
 	//Get & Set some props
 	SetEntPropFloat(client, Prop_Send, "m_flRageMeter",	GetEntPropFloat(iTarget, Prop_Send, "m_flRageMeter"));
-//	SetEntProp(client, Prop_Send, "m_bRageDraining",	GetEntProp(iTarget, Prop_Send, "m_bRageDraining"));
+	SetEntProp(client, Prop_Send, "m_nNumHealers",	    GetEntProp(iTarget, Prop_Send, "m_nNumHealers"));
 	SetEntProp(client, Prop_Send, "m_bIsABot",			GetEntProp(iTarget, Prop_Send, "m_bIsABot"));
 	SetEntProp(client, Prop_Send, "m_nBotSkill",		GetEntProp(iTarget, Prop_Send, "m_nBotSkill"));
 	SetEntProp(client, Prop_Send, "m_bIsMiniBoss",		GetEntProp(iTarget, Prop_Send, "m_bIsMiniBoss"));
 	SetEntProp(client, Prop_Data, "m_bloodColor", 		GetEntProp(iTarget, Prop_Data, "m_bloodColor"));
 	
-	if(GetEntProp(iTarget, Prop_Send, "m_nNumHealers") > 0)//Force any medic bots/players that were healing this bot to heal the player instead
+/*	if(GetEntProp(iTarget, Prop_Send, "m_nNumHealers") > 0)//Force any medic bots/players that were healing this bot to heal the player instead
 	{
 		for(int i = 1; i <= MaxClients; i++)
 		{
@@ -2132,7 +2245,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 				}
 			}
 		}
-	}
+	}*/
 	
 	//Set gatebot on player if target is gatebot
 	if(g_bIsGateBot[iTarget])
@@ -2190,11 +2303,13 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Fix some bugs...	
 	TF2_RemoveCondition(client, TFCond_Zoomed);		
 	TF2_RemoveCondition(client, TFCond_Slowed);
+	TF2_RemoveCondition(client, TFCond_Healing);
+	TF2_RemoveCondition(iTarget, TFCond_Healing);
 	
 	//Mirror conditions
 	for (int cond = 0; cond <= view_as<int>(TFCond_SpawnOutline); ++cond)
 	{
-		if(cond == 5 || cond == 9 || cond == 51)
+		if(cond == 5 || cond == 9 || cond == 51 || cond == 21)
 			continue;
 		
 		if (!TF2_IsPlayerInCondition(client, view_as<TFCond>(cond)))
@@ -2309,9 +2424,11 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 				SetEntProp(pMedigun, Prop_Send, "m_bAttacking",			GetEntProp(tMedigun, Prop_Send, "m_bAttacking"));	
 				SetEntProp(pMedigun, Prop_Send, "m_bHealing",			GetEntProp(tMedigun, Prop_Send, "m_bHealing"));	
 				SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
-				SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0);//Hide the medigun effect
-				SetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget", -1);//Remove the medigun beam
-				SetEntProp(tMedigun, Prop_Send, "m_bHealing", 0);	
+				
+				//Why
+			//	SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0); //Hide the medigun effect
+			//	SetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget", -1);   //Remove the medigun beam
+			//	SetEntProp(tMedigun, Prop_Send, "m_bHealing", 0);	
 			}
 		}
 		
@@ -2522,6 +2639,7 @@ stock void TF2_PickupBomb(int iClient, int iFlag)
 	DataPack pack = new DataPack();
 	pack.WriteCell(EntIndexToEntRef(iFlag));
 	pack.WriteCell(GetClientUserId(iClient));
+	
 	RequestFrame(Frame_TF2_PickupBomb, pack);
 }
 
@@ -2530,6 +2648,7 @@ public void Frame_TF2_PickupBomb(DataPack pack)
 	pack.Reset();
 	int iFlag = EntRefToEntIndex(pack.ReadCell());
 	int iClient = GetClientOfUserId(pack.ReadCell());
+	
 	if (IsValidEntity(iFlag) && GetEntPropEnt(iFlag, Prop_Send, "moveparent") == iClient && iClient > 0 && iClient <= MaxClients)
 		SetEntPropEnt(iClient, Prop_Send, "m_hItem", iFlag);
 }
@@ -2735,6 +2854,7 @@ stock int TF2_GetSquadLeader(Address pSquad)
 	int iLeader = SDKCall(g_hSDKGetSquadLeader, pSquad);
 	if (iLeader > 0 && iLeader <= MaxClients && IsFakeClient(iLeader) && g_bIsControlled[iLeader])
 		return GetClientOfUserId(g_iController[iLeader]);
+	
 	return iLeader;
 }
 
