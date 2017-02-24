@@ -187,7 +187,6 @@ Handle g_hSDKUpdateSkin;
 //DHooks
 Handle g_hIsValidTarget;
 Handle g_hCTFPlayerShouldGib;
-Handle g_hCCaptureFlagPickUp;
 Handle g_hShouldTransmit;
 
 //Offsets
@@ -325,10 +324,6 @@ public void OnPluginStart()
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::ShouldGib");
 	g_hCTFPlayerShouldGib = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CTFPlayer_ShouldGib);
 	DHookAddParam(g_hCTFPlayerShouldGib, HookParamType_ObjectPtr, -1, DHookPass_ByRef);
-	
-	iOffset = GameConfGetOffset(hConf, "CCaptureFlag::PickUp");
-	g_hCCaptureFlagPickUp = DHookCreate(iOffset, HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, CCaptureFlag_PickUp);
-	DHookAddParam(g_hCCaptureFlagPickUp, HookParamType_CBaseEntity);
 	
 	iOffset = GameConfGetOffset(hConf, "CBaseEntity::ShouldTransmit");
 	g_hShouldTransmit = DHookCreate(iOffset, HookType_Entity, ReturnType_Int, ThisPointer_CBaseEntity, Hook_EntityShouldTransmit);
@@ -516,25 +511,6 @@ public MRESReturn CTFPlayer_ShouldGib(int pThis, Handle hReturn, Handle hParams)
 	return MRES_Ignored;
 }
 
-public MRESReturn CCaptureFlag_PickUp(int iFlag, Handle hParams)
-{
-	if(GameRules_GetProp("m_bPlayingMannVsMachine") && !DHookIsNullParam(hParams, 1))
-	{
-		int iTarget = DHookGetParam(hParams, 1);
-		if (g_bControllingBot[iTarget])
-		{
-			TF2_SetFakeClient(iTarget, false);//Avoid a crash
-			RequestFrame(Frame_FlagPickUp, iTarget);
-		}
-	}
-}
-
-public void Frame_FlagPickUp(int iClient)
-{
-	if (g_bControllingBot[iClient])
-		TF2_SetFakeClient(iClient, true);
-}
-
 public MRESReturn Hook_EntityShouldTransmit(int pThis, Handle hReturn, Handle hParams)
 {
 	if(GameRules_GetProp("m_bPlayingMannVsMachine"))
@@ -586,7 +562,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if(StrEqual(classname, "item_teamflag"))
 	{
-		DHookEntity(g_hCCaptureFlagPickUp, false, entity);
+		SDKHook(entity, SDKHook_StartTouch, OnFlagTouch);
+		SDKHook(entity, SDKHook_EndTouch, OnFlagTouch);
 	}
 	else if(g_bBlockRagdoll && StrEqual(classname, "tf_ragdoll"))
 	{
@@ -755,12 +732,19 @@ public Action Event_SappedObject(Event event, const char[] name, bool dontBroadc
 
 public Action OnFlagTouch(int iEntity, int iOther)
 {
+	//If its not a client we don't care
 	if(iOther <= 0 || iOther > MaxClients)
 		return Plugin_Continue;
 	
+	//Controlled bots should never be able to pickup bomb
+	if(g_bIsControlled[iOther])
+		return Plugin_Handled;
+	
+	//Gatebots ignore bombs and only capture gates
 	if(g_bIsGateBot[iOther])
 		return Plugin_Handled;
 	
+	//Sentry busters bust sentries not mann co
 	if(g_bIsSentryBuster[iOther])
 		return Plugin_Handled;
 	
@@ -1185,8 +1169,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				//Don't detonate buster if client is holding M1 and M2 at same time
 				if(buttons & IN_ATTACK || TF2_IsPlayerInCondition(client, TFCond_Taunting) && (!(buttons & IN_ATTACK) && (!(buttons & IN_ATTACK2))))
 				{
-					TF2_DetonateBuster(client);					
-					TF2_ClearBot(client);
+					TF2_RestoreBot(client);
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
 				}
 				
@@ -1201,8 +1184,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						
 						if(flDistance <= 100.0)
 						{
-							TF2_DetonateBuster(client);							
-							TF2_ClearBot(client);
+							TF2_RestoreBot(client);
 							TF2_ChangeClientTeam(client, TFTeam_Spectator);
 						}
 					}
@@ -1933,7 +1915,9 @@ public Action Hook_ControlledBotTransmit(int entity, int other)
 {
 	if (g_bIsControlled[entity])
 		return Plugin_Handled;
+	
 	SDKUnhook(entity, SDKHook_SetTransmit, Hook_ControlledBotTransmit);//Destroy the hook if the bot is no longer controlled.
+	
 	return Plugin_Continue;
 }
 
