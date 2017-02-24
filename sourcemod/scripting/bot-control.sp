@@ -654,7 +654,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if(StrEqual(classname, "item_teamflag"))
 	{
-		SDKHook(entity, SDKHook_StartTouch, OnFlagTouch);
+		SDKHook(entity, SDKHook_StartTouch, OnFlagStartTouch);
 		SDKHook(entity, SDKHook_EndTouch, OnFlagTouch);
 	}
 	else if(g_bBlockRagdoll && StrEqual(classname, "tf_ragdoll"))
@@ -824,6 +824,26 @@ public Action Event_SappedObject(Event event, const char[] name, bool dontBroadc
 	}
 }
 
+public Action OnFlagStartTouch(int iEntity, int iOther)
+{
+	Action touchAction;
+	touchAction = OnFlagTouch(iEntity,iOther);
+	if (touchAction != Plugin_Handled && iOther > 0 && iOther <= MaxClients && !IsFakeClient(iOther))
+	{
+		TF2_SetFakeClient(iOther, false);
+		RequestFrame(Frame_FlagPickup,GetClientUserId(iOther));
+	}
+	
+	return touchAction;
+}
+
+public void Frame_FlagPickup(int userid)
+{
+	int iClient = GetClientOfUserId(userid);
+	if (iClient > 0)
+		TF2_SetFakeClient(iClient, true);
+}
+
 public Action OnFlagTouch(int iEntity, int iOther)
 {
 	//If its not a client we don't care
@@ -841,6 +861,17 @@ public Action OnFlagTouch(int iEntity, int iOther)
 	//Sentry busters bust sentries not mann co
 	if(g_bIsSentryBuster[iOther])
 		return Plugin_Handled;
+	
+	if (g_bControllingBot[iOther])
+	{
+		int iBot = GetClientOfUserId(g_iPlayersBot[iOther]);
+		if (iBot > 0 && iBot <= MaxClients)
+		{
+			int iLeader = TF2_GetBotSquadLeader(iBot);
+			if (iLeader != iOther)
+				return Plugin_Handled;
+		}
+	}
 	
 //	PrintToServer("Flag pickup allowed for %N", iOther);
 	
@@ -994,7 +1025,11 @@ public Action OnSpawnEndTouch(int iEntity, int iOther)
 public void TF2_OnConditionAdded(int client, TFCond cond)
 {
 	if(IsFakeClient(client))
+	{
+		if (g_bIsControlled[client] && GetEntPropEnt(client, Prop_Send, "moveparent") != -1)
+			TF2_RemoveCondition(client, cond);
 		return;
+	}
 
 	if(cond == view_as<TFCond>(114))
 	{
@@ -2069,7 +2104,31 @@ stock void TF2_RestoreBot(int client)
 			}
 		}
 		
+		//Mirror conditions
+		for (int cond = 0; cond <= view_as<int>(TFCond_SpawnOutline); ++cond)
+		{
+			if(cond == 5 || cond == 9 || cond == 51)
+				continue;
+			
+			if (!TF2_IsPlayerInCondition(client, view_as<TFCond>(cond)))
+				continue;
+			
+			Address tmp = view_as<Address>(LoadFromAddress(GetEntityAddress(client) + view_as<Address>(g_iCondSourceOffs), NumberType_Int32));
+			Address addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (2 * 4));
+			int value = LoadFromAddress(addr, NumberType_Int32);
+			
+			addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (3 * 4));
+			int provider = LoadFromAddress(addr, NumberType_Int32) & ENT_ENTRY_MASK;
+			
+			//Only mirror conditions that don't last "forever"
+			if(value > 0.0)
+			{
+				TF2_AddCondition(iBot, view_as<TFCond>(cond), view_as<float>(value), (provider > 0 && provider <= MaxClients) ? provider : 0);
+			}
+		}
+		
 		TF2_RemoveCondition(iBot, TFCond_UberchargedCanteen);
+		TF2_RemoveCondition(iBot, TFCond_Stealthed);
 		
 		AcceptEntityInput(iBot,"ClearParent");
 		SetEntProp(iBot, Prop_Send, "m_nSolidType", SOLID_BBOX);
@@ -2300,13 +2359,13 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Mirror conditions
 	for (int cond = 0; cond <= view_as<int>(TFCond_SpawnOutline); ++cond)
 	{
-		if(cond == 5 || cond == 9 || cond == 51 || cond == 21)
+		if(cond == 5 || cond == 9 || cond == 51)
 			continue;
 		
-		if (!TF2_IsPlayerInCondition(client, view_as<TFCond>(cond)))
+		if (!TF2_IsPlayerInCondition(iTarget, view_as<TFCond>(cond)))
 			continue;
 		
-		Address tmp = view_as<Address>(LoadFromAddress(GetEntityAddress(client) + view_as<Address>(g_iCondSourceOffs), NumberType_Int32));
+		Address tmp = view_as<Address>(LoadFromAddress(GetEntityAddress(iTarget) + view_as<Address>(g_iCondSourceOffs), NumberType_Int32));
 		Address addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (2 * 4));
 		int value = LoadFromAddress(addr, NumberType_Int32);
 		
@@ -2350,8 +2409,9 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	SetEntPropFloat(iTarget, Prop_Send, "m_flRageMeter",0.0);
 	
 	TF2_AddCondition(iTarget, TFCond_UberchargedCanteen, -1.0);//In case the mvm logic decides to slay the bot
+	TF2_AddCondition(iTarget, TFCond_Stealthed, -1.0);//Hide eye glow, and also hide the controlled bot from sentries, and red bots (if any).
 	SetEntityMoveType(iTarget, MOVETYPE_NONE);
-	TeleportEntity(iTarget, view_as<float>({0.0, 0.0, 9999.0}), NULL_VECTOR, NULL_VECTOR);//Teleport the bot far away so once we set our transmit hook on it, its eye glow won't be attached to the player.
+	TeleportEntity(iTarget, view_as<float>({0.0, 0.0, 9999.0}), NULL_VECTOR, NULL_VECTOR);//Teleport the bot far away so once we set our transmit hook on it, its eye glow won't be attached to the player or its engine sound.
 	
 	SetEntProp(iTarget, Prop_Send, "m_nSolidType", SOLID_NONE);
 	SetEntProp(iTarget, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_DEBRIS);
@@ -2385,7 +2445,7 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 		//Teleport back our bot our transmit hook is handling it now.
 		float flPos[3];
 		GetClientAbsOrigin(client, flPos);
-		flPos[2] += 60.0;
+		flPos[2] += 40.0;
 		TeleportEntity(iBot, flPos, NULL_VECTOR, NULL_VECTOR);
 		SetVariantString("!activator");
 		AcceptEntityInput(iBot,"SetParent",client);
@@ -2624,6 +2684,7 @@ stock int TF2_DropBomb(int client)
 stock void TF2_PickupBomb(int iClient, int iFlag)
 {
 //	PrintToChatAll("TF2_PickupBomb %N %i", iClient, iFlag);
+	if (!IsFakeClient(iClient)) TF2_SetFakeClient(iClient, false);
 	
 	SDKCall(g_hSDKPickup, iFlag, iClient, true);	
 	
@@ -2641,7 +2702,10 @@ public void Frame_TF2_PickupBomb(DataPack pack)
 	int iClient = GetClientOfUserId(pack.ReadCell());
 	
 	if (IsValidEntity(iFlag) && GetEntPropEnt(iFlag, Prop_Send, "moveparent") == iClient && iClient > 0 && iClient <= MaxClients)
+	{
 		SetEntPropEnt(iClient, Prop_Send, "m_hItem", iFlag);
+		if (!IsFakeClient(iClient)) TF2_SetFakeClient(iClient, true);
+	}
 }
 
 stock void TF2_RobotsWin()
