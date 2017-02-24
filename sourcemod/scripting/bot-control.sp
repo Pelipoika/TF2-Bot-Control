@@ -1078,7 +1078,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			if(TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden))
 			{
-				SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);
+				if (TF2_GetPlayerClass(client) == TFClass_Medic && GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary) == iActiveWeapon)
+				{
+					//Allow medic to heal in spawn
+				}
+				else
+					SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);
 				
 				//Disallow crouching in spawn so when you lose control of your bot the bot wont spawn inside ground.
 				buttons &= ~IN_DUCK;
@@ -1157,6 +1162,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			SetHudTextParams(1.0, 0.0, 0.1, 88, 133, 162, 0, 0, 0.0, 0.0, 0.0);
 			ShowSyncHudText(client, g_hHudInfo, "Playing as %N", iBot);
+			SetEntPropFloat(iBot, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);//don't allow the bot to attack
 			
 			//Instruction
 		/*	if (g_flNextInstructionTime[client] <= GetGameTime())
@@ -1776,7 +1782,7 @@ public Action Listener_Build(int client, char[] command, int args)
 	return Plugin_Continue;
 }
 
-/*
+
 //Detours
 public Action CTFBotSquad_ShouldSquadLeaderWaitForFormation(Address pSquad, bool& bOriginalResult)
 {
@@ -1824,14 +1830,14 @@ public Action CTFBotSquad_ShouldSquadLeaderWaitForFormation(Address pSquad, bool
 	return Plugin_Changed;
 }
 
-public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget, bool& bOriginalResult)
+public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget, bool& bResult)
 {
 	int iOwner = GetEntPropEnt(iMedigun, Prop_Send, "m_hOwnerEntity");
 	if (iOwner > 0 && iOwner <= MaxClients && IsClientInGame(iOwner))
 	{
 		if (IsFakeClient(iOwner) && g_bIsControlled[iOwner])
 		{
-			bOriginalResult = false;//Don't allow a controlled bot to heal
+			bResult = false;//Don't allow a controlled bot to heal
 			return Plugin_Changed;
 		}
 		if (IsFakeClient(iOwner)) return Plugin_Continue;
@@ -1843,7 +1849,7 @@ public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget
 			int iLeader = TF2_GetBotSquadLeader(iBot);
 			if (iLeader > 0 && iLeader <= MaxClients && IsClientInGame(iLeader) && IsPlayerAlive(iLeader) && iLeader != iBot)//If the player is controlling the leader then no need to restrict his heal target
 			{
-				bOriginalResult = (iHealTarget == iLeader);
+				bResult = (iHealTarget == iLeader);
 				return Plugin_Changed;
 			}
 		}
@@ -1851,21 +1857,6 @@ public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget
 	
 	return Plugin_Continue;
 }
-
-public Action CTFBotMedicHeal_SelectPatient(Address pMedicHeal, int iMedicBot, int& iCurrentPatient)
-{
-	int iLeader = TF2_GetBotSquadLeader(iMedicBot);
-	if (iMedicBot == iLeader) 
-		return Plugin_Continue;
-		
-	if (iLeader <= 0 || iLeader > MaxClients || !IsClientInGame(iLeader) || !IsPlayerAlive(iLeader) || IsFakeClient(iLeader)) 
-		return Plugin_Continue;
-		
-	//Always force the medic to go for his leader (kinda useless with our current squad leader management, if CTFBotMedicHeal::SelectPatient signature breaks the mod should still run fine)
-	iCurrentPatient = iLeader;
-	
-	return Plugin_Continue;
-}*/
 
 stock int TF2_GetObjectCount(int client, TFObjectType type)
 {
@@ -2425,10 +2416,10 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 				SetEntProp(pMedigun, Prop_Send, "m_bHealing",			GetEntProp(tMedigun, Prop_Send, "m_bHealing"));	
 				SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
 				
-				//Why
-			//	SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0); //Hide the medigun effect
-			//	SetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget", -1);   //Remove the medigun beam
-			//	SetEntProp(tMedigun, Prop_Send, "m_bHealing", 0);	
+				//Because
+				SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0); //Hide the medigun effect
+				SetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget", -1);   //Remove the medigun beam
+				SetEntProp(tMedigun, Prop_Send, "m_bHealing", 0);	
 			}
 		}
 		

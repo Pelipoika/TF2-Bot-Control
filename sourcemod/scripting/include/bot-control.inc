@@ -11,12 +11,7 @@ forward Action CTFBotSquad_ShouldSquadLeaderWaitForFormation(Address pSquad, boo
 /**
  * Called whenever the function CWeaponMedigun::AllowedToHealTarget is called.
  */
-forward Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget, bool& bOriginalResult);
-
-/**
- * Called whenever the function CTFBotMedicHeal::SelectPatient is called.
- */
-forward Action CTFBotMedicHeal_SelectPatient(Address pMedicHeal, int iMedicBot, int& iCurrentPatient);
+forward Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget, bool& bResult);
 
 /**
  * Do not edit below this line!
