@@ -1678,6 +1678,8 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 	if(IsFakeClient(client) && g_bIsControlled[client])
 	{
 		dontBroadcast = true;
+		g_bBlockRagdoll = true;
+		
 		return Plugin_Changed;
 	}
 	
@@ -2126,11 +2128,14 @@ stock void TF2_RestoreBot(int client)
 		TF2_RemoveCondition(iBot, TFCond_Dazed);
 		
 		AcceptEntityInput(iBot,"ClearParent");
+		
 		SetEntProp(iBot, Prop_Send, "m_nSolidType", SOLID_BBOX);
 		SetEntProp(iBot, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
 		SetEntProp(iBot, Prop_Send, "m_usSolidFlags", FSOLID_NOT_STANDABLE);
 		SetEntPropFloat(iBot, Prop_Send, "m_flModelScale", GetEntPropFloat(client, Prop_Send, "m_flModelScale"));
 		SetEntPropFloat(iBot, Prop_Send, "m_flRageMeter", GetEntPropFloat(client, Prop_Send, "m_flRageMeter"));
+		
+		g_bBlockRagdoll = true;
 	
 		float flPos[3], flAng[3], flVelocity[3];
 		GetClientAbsOrigin(client, flPos);
