@@ -56,7 +56,7 @@
 			"CTFBot::HasTag"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x56\x33\xF6\x57\x39\xB3\x4C\x25\x00\x00"
+				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x56\x33\xF6\x57\x39\xB3\x94\x25\x00\x00"
 				"linux"		"@_ZN6CTFBot6HasTagEPKc"
 			}	
 			"CTFBot::AddTag"
@@ -108,6 +108,11 @@
 			{		
 				"windows"	"18"		
 				"linux"		"19"		
+			}
+			"CFilterTFBotHasTag::PassesFilterImpl" //(CBaseEntity *, CBaseEntity *)
+			{
+				"windows"	"190"
+				"linux"		"191"
 			}
 			"CTFPlayer::EquipWearable"
 			{

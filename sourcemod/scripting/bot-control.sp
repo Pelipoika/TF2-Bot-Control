@@ -183,11 +183,13 @@ Handle g_hSDKGetMaxClip;
 Handle g_hSDKPickup;
 Handle g_hSDKRemoveObject;
 Handle g_hSDKUpdateSkin;
+Handle g_hSDKHasTag;
 
 //DHooks
 Handle g_hIsValidTarget;
 Handle g_hCTFPlayerShouldGib;
 Handle g_hShouldTransmit;
+Handle g_hCFilterTFBotHasTag;
 
 //Offsets
 int g_iOffsetWeaponRestrictions;
@@ -224,12 +226,8 @@ int g_iController[MAXPLAYERS+1];
 
 //Bot data
 bool g_bIsSentryBuster[MAXPLAYERS+1];
-bool g_bIsGateBot[MAXPLAYERS+1];
 bool g_bDeploying[MAXPLAYERS+1];
 float g_flSpawnTime[MAXPLAYERS+1];
-
-//Is map Mannhattan
-bool g_bIsMannhattan = false;
 
 //Bomb data
 int g_iFlagCarrierUpgradeLevel[MAXPLAYERS+1];
@@ -283,6 +281,13 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//StartSound
 	if ((g_hSDKSetMission = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::SetMission signature!"); 
 	
+	//This call is used to get a bots tag
+	StartPrepSDKCall(SDKCall_Player); 
+	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBot::HasTag");
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);	//Tag
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
+	if ((g_hSDKHasTag = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::HasTag signature!"); 
+	
 	//This call is used to retrieve the leader of a squad
 	StartPrepSDKCall(SDKCall_Raw);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBotSquad::GetLeader");
@@ -334,6 +339,12 @@ public void OnPluginStart()
 	g_hIsValidTarget = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, IsValidTarget);
 	DHookAddParam(g_hIsValidTarget, HookParamType_CBaseEntity);
 	
+	iOffset = GameConfGetOffset(hConf, "CFilterTFBotHasTag::PassesFilterImpl");	
+	if(iOffset == -1) SetFailState("Failed to get offset of CFilterTFBotHasTag::PassesFilterImpl");
+	g_hCFilterTFBotHasTag = DHookCreate(iOffset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, CFilterTFBotHasTag);
+	DHookAddParam(g_hCFilterTFBotHasTag, HookParamType_CBaseEntity);	//Entity index of the entity using the filter
+	DHookAddParam(g_hCFilterTFBotHasTag, HookParamType_CBaseEntity);	//Entity index that triggered the filter
+	
 	//Credits to Psychonic
 	int offset = FindSendPropInfo("CTFPlayer", "m_Shared");
 	if (offset == -1) SetFailState("Cannot find m_Shared on CTFPlayer.");
@@ -346,6 +357,7 @@ public void OnPluginStart()
 	{
 		char sClassName[64];
 		GetEntityClassname(iEnt, sClassName, sizeof(sClassName));
+		
 		OnEntityCreated(iEnt, sClassName);
 	}
 	
@@ -432,11 +444,6 @@ public Action Command_ToggleRandomPicker(int client, int args)
 
 public void OnMapStart()
 {
-	char strMap[32];
-	GetCurrentMap(strMap, sizeof(strMap));
-	if (StrEqual(strMap, "mvm_mannhattan"))
-		g_bIsMannhattan = true;
-
 	PrecacheSound(SOUND_DEPLOY_SMALL);
 	PrecacheSound(SOUND_DEPLOY_GIANT);
 	PrecacheSound(BOMB_UPGRADE);
@@ -450,7 +457,6 @@ public void OnClientPutInServer(int client)
 	g_bControllingBot[client] = false;	
 	g_bIsControlled[client] = false;
 	g_iController[client] = -1;
-	g_bIsGateBot[client] = false;
 	g_bIsSentryBuster[client] = false;
 	g_bSkipInventory[client] = false;
 	g_bCanPlayAsBot[client] = true;
@@ -470,8 +476,8 @@ public void OnClientPutInServer(int client)
 	g_bDeploying[client] = false;
 	g_flBombDeployTime[client] = -1.0;
 	
-	DHookEntity(g_hCTFPlayerShouldGib,          true, client);
-	DHookEntity(g_hIsValidTarget,               true, client);
+	DHookEntity(g_hCTFPlayerShouldGib, true, client);
+	DHookEntity(g_hIsValidTarget,      true, client);
 	
 	SDKHook(client, SDKHook_SetTransmit, Hook_SpyTransmit);
 }
@@ -499,7 +505,6 @@ public Action Command_Debug(int client, int args)
 		PrintToConsole(client, "g_bControllingBot = %i", g_bControllingBot[iTarget]);
 		PrintToConsole(client, "g_bIsControlled = %i", g_bIsControlled[iTarget]);
 		PrintToConsole(client, "g_iController = %i", GetClientOfUserId(g_iController[iTarget]));
-		PrintToConsole(client, "g_bIsGateBot = %i", g_bIsGateBot[iTarget]);
 		PrintToConsole(client, "g_bIsSentryBuster = %i", g_bIsSentryBuster[iTarget]);
 		PrintToConsole(client, "g_bSkipInventory = %i", g_bSkipInventory[iTarget]);
 		PrintToConsole(client, "g_bCanPlayAsBot = %i", g_bCanPlayAsBot[iTarget]);
@@ -556,6 +561,57 @@ public Action Command_Debug(int client, int args)
 	}
 	
 	return Plugin_Handled;
+}
+
+public MRESReturn CFilterTFBotHasTag(int iFilter, Handle hReturn, Handle hParams)
+{
+	if(GameRules_GetProp("m_bPlayingMannVsMachine") && !DHookIsNullParam(hParams, 2))
+	{
+		int iEntity = DHookGetParam(hParams, 1);
+		int iOther  = DHookGetParam(hParams, 2);
+		
+		if(iOther <= 0 || iOther > MaxClients)
+			return MRES_Ignored;
+		
+		//Don't care about real bots
+		if(IsFakeClient(iOther))
+			return MRES_Ignored;
+		
+		//Don't care about players not controlling a bot
+		if(!g_bControllingBot[iOther])
+			return MRES_Ignored;
+		
+		int iBot = GetClientOfUserId(g_iPlayersBot[iOther]);
+		if(iBot <= 0)
+			return MRES_Ignored;
+		
+		char strTags[PLATFORM_MAX_PATH]; 
+		GetEntPropString(iFilter, Prop_Data, "m_iszTags", strTags, PLATFORM_MAX_PATH);
+		bool bNegated = !!GetEntProp(iFilter, Prop_Data, "m_bNegated");
+	//	bool bRequireAllTags = !!GetEntProp(iFilter, Prop_Data, "m_bRequireAllTags");	//Don't know of a map that uses this.
+		
+		bool bResult = TF2_HasTag(iBot, strTags);
+		if(bNegated)
+			bResult = !bResult;
+		
+		char iEntityClassname[64];
+		GetEntityClassname(iEntity, iEntityClassname, sizeof(iEntityClassname));
+		
+		//We don't care about you
+		if(StrEqual(iEntityClassname, "func_nav_prerequisite"))
+			return MRES_Ignored;
+		
+		//These work the opposite way
+		if(StrEqual(iEntityClassname, "trigger_add_tf_player_condition"))
+			bResult = !bResult;
+		
+		PrintToServer("Filter %i on entity %s asks: HasTag %N %s ? %s", iFilter, iEntityClassname, iBot, strTags, bResult ? "Yes" : "No");
+		
+		DHookSetReturn(hReturn, bResult);
+		return MRES_Supercede;
+	}
+
+	return MRES_Ignored;
 }
 
 public MRESReturn IsValidTarget(int pThis, Handle hReturn, Handle hParams)
@@ -634,11 +690,7 @@ public void OnClientDisconnect(int client)
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
-	if(StrEqual(classname, "tf_wearable"))
-	{
-		SDKHook(entity, SDKHook_SpawnPost, OnWearableSpawnPost);
-	}
-	else if(StrEqual(classname, "item_currencypack_custom"))
+	if(StrEqual(classname, "item_currencypack_custom"))
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnCurrencySpawnPost);
 	}
@@ -654,8 +706,9 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if(StrEqual(classname, "item_teamflag"))
 	{
-		SDKHook(entity, SDKHook_StartTouch, OnFlagStartTouch);
-		SDKHook(entity, SDKHook_EndTouch, OnFlagTouch);
+	//	SDKHook(entity, SDKHook_StartTouch, OnFlagStartTouch);
+		SDKHook(entity, SDKHook_StartTouch, OnFlagTouch);
+		SDKHook(entity, SDKHook_Touch, OnFlagTouch);
 	}
 	else if(g_bBlockRagdoll && StrEqual(classname, "tf_ragdoll"))
 	{
@@ -667,14 +720,20 @@ public void OnEntityCreated(int entity, const char[] classname)
 		SDKHook(entity, SDKHook_SetTransmit, Hook_TeleporterTransmit);
 		SDKHook(entity, SDKHook_OnTakeDamage, Hook_TeleporterTakeDamage);
 	}
-	
-	if(g_bIsMannhattan)
+	else if(StrEqual(classname, "filter_tf_bot_has_tag"))
 	{
-		if(StrEqual(classname, "trigger_multiple") || StrEqual(classname, "filter_multi") 
-		|| StrEqual(classname, "trigger_timer_door"))
-		{
-			SDKHook(entity, SDKHook_SpawnPost, OnSpawnPost);
-		}
+		/*
+		-2052671369 [filter_gatebot] - 85.512199 772.000000 47.000000
+		-2142369657 [filter_squad_leader] - 85.512199 772.000000 24.000000
+		-2095449976 [filter_squad_member] - 85.512199 716.000000 84.000000
+		-2053900151 [filter_giant_exclude] - 85.512199 692.000000 84.000000
+		-2120279925 [filter_bomb_carrier1] - 85.512199 668.000000 84.000000
+		-2134005616 [filter_giant_include] - 85.512199 692.000000 52.000000
+		-2039514986 [filter_sentrybuster_include] - 85.512199 668.000000 32.000000
+		-2022389609 [filter_sentrybuster_exclude] - 85.512199 668.000000 4.000000
+		*/
+		
+		DHookEntity(g_hCFilterTFBotHasTag, true, entity);
 	}
 }
 
@@ -792,26 +851,6 @@ public Action SentryVision_OnThink(int iSentryGlow, int iClient)
 	return Plugin_Handled;//Do not allow other players to see it.
 }
 
-public void OnSpawnPost(int trigger)
-{
-	char strName[64];
-	GetEntPropString(trigger, Prop_Data, "m_iName", strName, 64);
-	
-	if(StrEqual(strName, "gate1_door_alarm") || StrEqual(strName, "gate2_door_alarm") 
-	|| StrEqual(strName, "gate1_door_trigger") || StrEqual(strName, "gate2_door_trigger"))
-	{
-		SetEntPropEnt(trigger, Prop_Data, "m_hFilter", -1);
-		SDKHook(trigger, SDKHook_StartTouch, OnTriggerTouch);
-		SDKHook(trigger, SDKHook_Touch, OnTriggerTouch);
-		PrintToServer("-> Hooked %s", strName);
-	}
-	else if(StrEqual(strName, "filter_blue_bombhat"))
-	{
-		AcceptEntityInput(trigger, "Kill");
-		PrintToServer("-> Killed %s", strName);
-	}
-}
-
 public Action Event_SappedObject(Event event, const char[] name, bool dontBroadcast)
 {
 	int spy = GetClientOfUserId(event.GetInt("userid"));
@@ -855,7 +894,7 @@ public Action OnFlagTouch(int iEntity, int iOther)
 		return Plugin_Handled;
 	
 	//Gatebots ignore bombs and only capture gates
-	if(g_bIsGateBot[iOther])
+	if(TF2_HasTag(iOther, "bot_gatebot"))
 		return Plugin_Handled;
 	
 	//Sentry busters bust sentries not mann co
@@ -1035,39 +1074,6 @@ public void TF2_OnConditionAdded(int client, TFCond cond)
 	{
 		TF2_RemoveCondition(client, view_as<TFCond>(114));
 	}
-	
-	//Don't stun miniboss players
-	if(cond == TFCond_MVMBotRadiowave && (TF2_IsGiant(client) || g_bIsSentryBuster[client]))
-	{
-		TF2_RemoveCondition(client, TFCond_MVMBotRadiowave);
-		TF2_RemoveCondition(client, view_as<TFCond>(15));
-	}
-}
-
-public void OnWearableSpawnPost(int iWearable)
-{
-	RequestFrame(OnWearableSpawnPostPost, EntIndexToEntRef(iWearable));
-}
-
-public void OnWearableSpawnPostPost(int iRef)
-{
-	int iWearable = EntRefToEntIndex(iRef);
-	if(iWearable != INVALID_ENT_REFERENCE)
-	{
-		int iDefIndex = GetEntProp(iWearable, Prop_Send, "m_iItemDefinitionIndex");
-
-		switch(iDefIndex)
-		{
-			case 1057, 1058, 1059, 1060, 1061, 1062, 1063, 1064, 1065:
-			{
-				int iOwner = GetEntPropEnt(iWearable, Prop_Send, "m_hOwnerEntity");
-				if(iOwner > 0 && iOwner <= MaxClients)
-				{			
-					g_bIsGateBot[iOwner] = true;
-				}
-			}
-		}
-	}
 }
 
 public void OnCurrencySpawnPost(int iCurrency)
@@ -1089,16 +1095,6 @@ public void OnCurrencySpawnPost(int iCurrency)
 	}
 }
 
-public Action OnTriggerTouch(int iEntity, int iOther)
-{
-	if(iOther > 0 && iOther <= MaxClients && IsPlayerAlive(iOther) && !g_bIsGateBot[iOther])
-	{
-		return Plugin_Handled;
-	}
-
-	return Plugin_Continue;
-}
-
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
 	if(IsFakeClient(client))
@@ -1113,12 +1109,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			if(TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden))
 			{
-				if (TF2_GetPlayerClass(client) == TFClass_Medic && GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary) == iActiveWeapon)
+				if (!(TF2_GetPlayerClass(client) == TFClass_Medic && GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary) == iActiveWeapon))
 				{
-					//Allow medic to heal in spawn
-				}
-				else
+					//Allow medic to heal in spawn if they have their medigun out.
 					SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);
+				}
 				
 				//Disallow crouching in spawn so when you lose control of your bot the bot wont spawn inside ground.
 				buttons &= ~IN_DUCK;
@@ -1200,7 +1195,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			SetEntPropFloat(iBot, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);//don't allow the bot to attack
 			
 			//Instruction
-		/*	if (g_flNextInstructionTime[client] <= GetGameTime())
+			if (g_flNextInstructionTime[client] <= GetGameTime())
 			{
 				if (TF2_HasBomb(client))
 				{
@@ -1266,7 +1261,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 				
 				g_flNextInstructionTime[client] = GetGameTime() + 30.0; //To-Do make cvar for this
-			}*/
+			}
 			
 			if(TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden))
 			{
@@ -1658,7 +1653,6 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 	int client = GetClientOfUserId(event.GetInt("userid"));
 
 	SetEntProp(client, Prop_Send, "m_bUseBossHealthBar", 0);
-	g_bIsGateBot[client] = false;
 	TF2_StopSounds(client);
 	
 	if(!IsFakeClient(client) && g_bControllingBot[client])
@@ -2298,10 +2292,9 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	}*/
 	
 	//Set gatebot on player if target is gatebot
-	if(g_bIsGateBot[iTarget])
+	if(TF2_HasTag(iTarget, "bot_gatebot"))
 	{
 		TF2Attrib_SetByName(client, "cannot pick up intelligence", 1.0);
-		g_bIsGateBot[client] = true;
 	}
 	
 	//Engineers cant carry buildings		
@@ -2455,6 +2448,7 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 			int iBomb = TF2_DropBomb(iBot);
 			if(IsValidEntity(iBomb))
 				TF2_PickupBomb(client, iBomb);
+			
 			//Copy bomb carrier upgrade level
 			int iResource = FindEntityByClassname(-1, "tf_objective_resource");
 			g_iFlagCarrierUpgradeLevel[client] = GetEntProp(iResource, Prop_Send, "m_nFlagCarrierUpgradeLevel");
@@ -2684,7 +2678,8 @@ stock int TF2_DropBomb(int client)
 stock void TF2_PickupBomb(int iClient, int iFlag)
 {
 //	PrintToChatAll("TF2_PickupBomb %N %i", iClient, iFlag);
-	if (!IsFakeClient(iClient)) TF2_SetFakeClient(iClient, false);
+	if (!IsFakeClient(iClient)) 
+		TF2_SetFakeClient(iClient, false);
 	
 	SDKCall(g_hSDKPickup, iFlag, iClient, true);	
 	
@@ -2693,6 +2688,25 @@ stock void TF2_PickupBomb(int iClient, int iFlag)
 	pack.WriteCell(GetClientUserId(iClient));
 	
 	RequestFrame(Frame_TF2_PickupBomb, pack);
+}
+
+//Gets a bots tag and does checking for real bots
+stock bool TF2_HasTag(int client, const char[] tag)
+{
+	if(IsFakeClient(client))
+	{
+		return SDKCall(g_hSDKHasTag, client, tag);
+	}
+	else
+	{
+		int iBot = GetClientOfUserId(g_iPlayersBot[client]);
+		if(iBot > 0)
+		{
+			return SDKCall(g_hSDKHasTag, iBot, tag);
+		}
+	}
+	
+	return false;
 }
 
 public void Frame_TF2_PickupBomb(DataPack pack)
@@ -2901,6 +2915,7 @@ stock Address TF2_GetBotSquad(int iBot)
 {
 	if (iBot > 0 && iBot <= MaxClients && IsFakeClient(iBot))
 		return view_as<Address>(GetEntData(iBot, g_iOffsetSquad));
+	
 	return Address_Null;
 }
 
@@ -2918,12 +2933,14 @@ stock int TF2_GetBotSquadLeader(int iBot)
 	Address pSquad = TF2_GetBotSquad(iBot);
 	if (pSquad != Address_Null)
 		return TF2_GetSquadLeader(pSquad);
+	
 	return -1;
 }
 
 stock void TF2_PlayAnimation(int client, const char[] sAnim)
 {
 	int iFlags = GetCommandFlags("mp_playanimation"); 
+	
 	SetCommandFlags("mp_playanimation", iFlags & ~FCVAR_CHEAT ); 
 	ClientCommand(client, "mp_playanimation %s", sAnim); 
 	SetCommandFlags("mp_playanimation", iFlags|FCVAR_CHEAT);
