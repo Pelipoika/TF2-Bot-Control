@@ -2123,6 +2123,7 @@ stock void TF2_RestoreBot(int client)
 		
 		TF2_RemoveCondition(iBot, TFCond_UberchargedCanteen);
 		TF2_RemoveCondition(iBot, TFCond_Stealthed);
+		TF2_RemoveCondition(iBot, TFCond_Dazed);
 		
 		AcceptEntityInput(iBot,"ClearParent");
 		SetEntProp(iBot, Prop_Send, "m_nSolidType", SOLID_BBOX);
@@ -2274,23 +2275,6 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	SetEntProp(client, Prop_Send, "m_bIsMiniBoss",		GetEntProp(iTarget, Prop_Send, "m_bIsMiniBoss"));
 	SetEntProp(client, Prop_Data, "m_bloodColor", 		GetEntProp(iTarget, Prop_Data, "m_bloodColor"));
 	
-/*	if(GetEntProp(iTarget, Prop_Send, "m_nNumHealers") > 0)//Force any medic bots/players that were healing this bot to heal the player instead
-	{
-		for(int i = 1; i <= MaxClients; i++)
-		{
-			if(IsClientInGame(i) && IsPlayerAlive(i) && TF2_GetClientTeam(i) == TFTeam_Blue && TF2_GetPlayerClass(i) == TFClass_Medic)
-			{		
-				int iMedigun = GetPlayerWeaponSlot(i, view_as<int>(TFWeaponSlot_Secondary));
-				if(IsValidEntity(iMedigun))		
-				{
-					int iHealTarget = GetEntPropEnt(iMedigun, Prop_Send, "m_hHealingTarget");
-					if(iHealTarget == iTarget)
-						SetEntPropEnt(iMedigun, Prop_Send, "m_hHealingTarget", client);
-				}
-			}
-		}
-	}*/
-	
 	//Set gatebot on player if target is gatebot
 	if(TF2_HasTag(iTarget, "bot_gatebot"))
 	{
@@ -2399,11 +2383,14 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Various netprops changed to "hide" the controlled bot.
 	SetEntPropFloat(iTarget, Prop_Send, "m_flModelScale", 0.000001);
 	SetEntProp(iTarget, Prop_Send, "m_bIsMiniBoss", 0);
-	SetEntPropFloat(iTarget, Prop_Send, "m_flRageMeter",0.0);
+	SetEntPropFloat(iTarget, Prop_Send, "m_flRageMeter", 0.0);
 	
-	TF2_AddCondition(iTarget, TFCond_UberchargedCanteen, -1.0);//In case the mvm logic decides to slay the bot
-	TF2_AddCondition(iTarget, TFCond_Stealthed, -1.0);//Hide eye glow, and also hide the controlled bot from sentries, and red bots (if any).
+	TF2_AddCondition(iTarget, TFCond_UberchargedCanteen, TFCondDuration_Infinite); //In case the mvm logic decides to slay the bot.
+	TF2_AddCondition(iTarget, TFCond_Stealthed, TFCondDuration_Infinite);          //Hide eye glow, and also hide the controlled bot from sentries, and red bots (if any).
+	TF2_AddCondition(iTarget, TFCond_Dazed, TFCondDuration_Infinite);              //Prevents the bot from pressing movement and fire keys.
+	
 	SetEntityMoveType(iTarget, MOVETYPE_NONE);
+	
 	TeleportEntity(iTarget, view_as<float>({0.0, 0.0, 9999.0}), NULL_VECTOR, NULL_VECTOR);//Teleport the bot far away so once we set our transmit hook on it, its eye glow won't be attached to the player or its engine sound.
 	
 	SetEntProp(iTarget, Prop_Send, "m_nSolidType", SOLID_NONE);
