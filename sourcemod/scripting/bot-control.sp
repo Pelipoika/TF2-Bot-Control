@@ -234,11 +234,6 @@ int g_iFlagCarrierUpgradeLevel[MAXPLAYERS+1];
 float g_flBombDeployTime[MAXPLAYERS+1];
 float g_flNextBombUpgradeTime[MAXPLAYERS+1];
 
-//TODO:
-//Add cvars
-//Copy primary ammo
-//Spawn leave timer still runs while stunned in spawn
-//Start upgarding bomb after exiting spawn
 //+map  workshop/601600702
 
 #define PLUGIN_VERSION "1.0"
@@ -323,7 +318,8 @@ public void OnPluginStart()
 	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMax        += GameConfGetOffset(hConf, "m_flAutoJumpMax");
 	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))			g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
 	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))			g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
-	g_iOffsetSquad = g_iOffsetWeaponRestrictions+GameConfGetOffset(hConf, "m_Squad");
+	
+	g_iOffsetSquad = g_iOffsetWeaponRestrictions + GameConfGetOffset(hConf, "m_Squad");
 	
 	int iOffset = GameConfGetOffset(hConf, "CTFPlayer::ShouldGib");
 	if(iOffset == -1) SetFailState("Failed to get offset of CTFBot::ShouldGib");
@@ -722,17 +718,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if(StrEqual(classname, "filter_tf_bot_has_tag"))
 	{
-		/*
-		-2052671369 [filter_gatebot] - 85.512199 772.000000 47.000000
-		-2142369657 [filter_squad_leader] - 85.512199 772.000000 24.000000
-		-2095449976 [filter_squad_member] - 85.512199 716.000000 84.000000
-		-2053900151 [filter_giant_exclude] - 85.512199 692.000000 84.000000
-		-2120279925 [filter_bomb_carrier1] - 85.512199 668.000000 84.000000
-		-2134005616 [filter_giant_include] - 85.512199 692.000000 52.000000
-		-2039514986 [filter_sentrybuster_include] - 85.512199 668.000000 32.000000
-		-2022389609 [filter_sentrybuster_exclude] - 85.512199 668.000000 4.000000
-		*/
-		
 		DHookEntity(g_hCFilterTFBotHasTag, true, entity);
 	}
 }
@@ -962,38 +947,26 @@ public void DisableAnim(int userid)
 			float vecClientPos[3], vecTargetPos[3];
 			GetClientAbsOrigin(client, vecClientPos);
 			
-			int i = -1;	
-			while ((i = FindEntityByClassname(i, "func_breakable")) != -1)
-			{
-				char strName[32];
-				GetEntPropString(i, Prop_Data, "m_iName", strName, sizeof(strName));
-				
-				if(StrEqual(strName, "cap_hatch_glasswindow"))
-				{
-					GetEntPropVector(i, Prop_Send, "m_vecOrigin", vecTargetPos);
-					
-					float v[3], ang[3];
-					SubtractVectors(vecTargetPos, vecClientPos, v);
-					NormalizeVector(v, v);
-					GetVectorAngles(v, ang);
-					
-					ang[0] = 0.0;
-					
-					SetVariantString("1");
-					AcceptEntityInput(client, "SetCustomModelRotates");
-					
-					SetEntProp(client, Prop_Send, "m_bUseClassAnimations", 0);
-					
-					char strVec[16];
-					Format(strVec, sizeof(strVec), "0 %f 0", ang[1]);
-					
-					SetVariantString(strVec);
-					AcceptEntityInput(client, "SetCustomModelRotation");
-					
-					break;
-				}
-			}
-
+			vecTargetPos = TF2_GetBombHatchPosition();
+			
+			float v[3], ang[3];
+			SubtractVectors(vecTargetPos, vecClientPos, v);
+			NormalizeVector(v, v);
+			GetVectorAngles(v, ang);
+			
+			ang[0] = 0.0;
+			
+			SetVariantString("1");
+			AcceptEntityInput(client, "SetCustomModelRotates");
+			
+			SetEntProp(client, Prop_Send, "m_bUseClassAnimations", 0);
+			
+			char strVec[16];
+			Format(strVec, sizeof(strVec), "0 %f 0", ang[1]);
+			
+			SetVariantString(strVec);
+			AcceptEntityInput(client, "SetCustomModelRotation");
+			
 			iCount = 0;
 		}
 		else
@@ -1067,6 +1040,7 @@ public void TF2_OnConditionAdded(int client, TFCond cond)
 	{
 		if (g_bIsControlled[client] && GetEntPropEnt(client, Prop_Send, "moveparent") != -1)
 			TF2_RemoveCondition(client, cond);
+		
 		return;
 	}
 
@@ -1144,6 +1118,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							buttons |= IN_ATTACK2;
 						}
 					}
+					else
+					{
+						//AIR CHARGE ONLY
+						buttons &= ~IN_ATTACK2;
+					}
 				}
 			}
 			
@@ -1194,74 +1173,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			ShowSyncHudText(client, g_hHudInfo, "Playing as %N", iBot);
 			SetEntPropFloat(iBot, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);//don't allow the bot to attack
 			
-			//Instruction
-			if (g_flNextInstructionTime[client] <= GetGameTime())
-			{
-				if (TF2_HasBomb(client))
-				{
-					int iCaptureArea = FindEntityByClassname(-1,"func_capturezone");
-					if (iCaptureArea > MaxClients)
-					{
-						float vecPos[3];
-						GetEntPropVector(iCaptureArea, Prop_Data, "m_vecAbsOrigin", vecPos);
-						Annotate(vecPos, client, "Deploy the bomb!", INSTRUCTION_MULTIPLE, 6.0);
-					}
-				}
-				else
-				{
-					int iLeader = TF2_GetBotSquadLeader(iBot);
-					if (iLeader > 0 && iLeader <= MaxClients && IsClientInGame(iLeader) && IsPlayerAlive(iLeader) && iLeader != client)
-					{
-						float vecLeaderPos[3];
-						GetClientEyePosition(iLeader, vecLeaderPos);
-						
-						char sMessage[120];
-						if (TF2_GetPlayerClass(client) == TFClass_Medic)
-						{
-							int iWepSecondary = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
-							if (iWepSecondary > MaxClients && GetEntPropEnt(iWepSecondary, Prop_Send, "m_hHealingTarget") != iLeader)
-								Format(sMessage, sizeof(sMessage), "Heal your squad leader!");
-							else if (iWepSecondary == -1)
-								Format(sMessage, sizeof(sMessage), "Protect your squad leader!");
-						}
-						else
-							Format(sMessage, sizeof(sMessage), "Protect your squad leader!");
-							
-						if (strcmp(sMessage,"") != 0)
-							Annotate(vecLeaderPos, client, sMessage, INSTRUCTION_LEADER, 6.0, iLeader);
-					}
-					else
-					{
-						int iBomb = -1;
-						while ((iBomb = FindEntityByClassname(iBomb, "item_teamflag")) != -1)
-						{
-							if (view_as<TFTeam>(GetEntProp(iBomb, Prop_Send, "m_iTeamNum")) == TFTeam_Blue && GetEntPropEnt(iBomb, Prop_Send, "moveparent") == -1 && !GetEntProp(iBomb, Prop_Send, "m_bDisabled"))
-								break;
-						}
-						if (iBomb > MaxClients)
-						{
-							float vecPos[3];
-							GetEntPropVector(iBomb, Prop_Data, "m_vecAbsOrigin", vecPos);
-							Annotate(vecPos, client, "Pickup the bomb!", INSTRUCTION_MULTIPLE, 6.0);
-						}
-						else
-						{
-							for (int iClient = 1; iClient <= MaxClients; iClient++)
-							{
-								if (IsClientInGame(iClient) && TF2_HasBomb(iClient))
-								{
-									float vecCarrierPos[3];
-									GetClientEyePosition(iClient, vecCarrierPos);
-									Annotate(vecCarrierPos, client, "Protect the carrier!", INSTRUCTION_MULTIPLE, 6.0, iClient);
-									break;
-								}
-							}
-						}
-					}
-				}
-				
-				g_flNextInstructionTime[client] = GetGameTime() + 30.0; //To-Do make cvar for this
-			}
+			TF2_InstructPlayer(client);
 			
 			if(TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden))
 			{
@@ -1350,14 +1262,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					BroadcastSoundToTeam(TFTeam_Spectator, "Announcer.MVM_Robots_Planted");
 				}
 				
-				buttons &= ~IN_JUMP;
-				buttons &= ~IN_ATTACK;
-				buttons &= ~IN_ATTACK2;
-				buttons &= ~IN_ATTACK3;
-			
-				vel[0] = 0.0;
-				vel[1] = 0.0;
-				vel[2] = 0.0;
+				buttons &= ~IN_JUMP|IN_ATTACK|IN_ATTACK2|IN_ATTACK3;
+				
+				ScaleVector(vel, 0.0);
 				
 				return Plugin_Changed;
 			}
@@ -1481,21 +1388,85 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			SetHudTextParams(1.0, 0.0, 0.1, 126, 126, 126, 0, 0, 0.0, 0.0, 0.0);
 			ShowSyncHudText(client, g_hHudInfo, "Call for MEDIC! to play as %N", iObserved);
 		}
-		else if(iObserved > 0 && iObserved <= MaxClients && IsClientInGame(iObserved) && IsFakeClient(iObserved))
+		else if(iObserved > 0 && iObserved <= MaxClients && IsFakeClient(iObserved))
 		{
-			char strReason[PLATFORM_MAX_PATH];
-			TF2_ObservedIsNotValidReason(client, strReason, PLATFORM_MAX_PATH);
-			Format(strReason, PLATFORM_MAX_PATH, "Cannot play as %N beacause %s", iObserved, strReason);
-		
 			if(GetEntProp(client, Prop_Send, "m_iObserverMode") == 4 || GetEntProp(client, Prop_Send, "m_iObserverMode") == 5)
 			{
 				SetHudTextParams(1.0, 0.0, 0.1, 255, 0, 0, 0, 0, 0.0, 0.0, 0.0);
-				ShowSyncHudText(client, g_hHudInfo, "%s", strReason);
+				ShowSyncHudText(client, g_hHudInfo, "Cannot play as %N", iObserved);
 			}
 		}
 	}
 	
 	return Plugin_Continue;
+}
+
+void TF2_InstructPlayer(int client)
+{
+ 	//Instruction
+	if (g_flNextInstructionTime[client] <= GetGameTime())
+	{
+		int iBot = GetClientOfUserId(g_iPlayersBot[client]);
+		if(iBot <= 0)
+			return;
+	
+		if (TF2_HasBomb(client))
+		{
+			float vecPos[3]; vecPos = TF2_GetBombHatchPosition();
+			Annotate(vecPos, client, "Deploy the bomb!", INSTRUCTION_MULTIPLE, 6.0);
+		}
+		else
+		{
+			int iLeader = TF2_GetBotSquadLeader(iBot);
+			if (iLeader > 0 && iLeader <= MaxClients && IsClientInGame(iLeader) && IsPlayerAlive(iLeader) && iLeader != client)
+			{
+				//In squad
+				
+				char sMessage[128];
+				if (TF2_GetPlayerClass(client) == TFClass_Medic)
+				{
+					int iWepSecondary = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
+					if (iWepSecondary > MaxClients && GetEntPropEnt(iWepSecondary, Prop_Send, "m_hHealingTarget") != iLeader)
+						Format(sMessage, sizeof(sMessage), "Heal your squad leader!");
+					else if (iWepSecondary == -1)
+						Format(sMessage, sizeof(sMessage), "Protect your squad leader!");
+				}
+				else
+					Format(sMessage, sizeof(sMessage), "Protect your squad leader!");
+					
+				if (!StrEqual(sMessage, ""))
+					Annotate(NULL_VECTOR, client, sMessage, INSTRUCTION_LEADER, 6.0, iLeader);
+			}
+			else
+			{
+				//Not in squad
+				
+				int iBomb = -1;
+				while ((iBomb = FindEntityByClassname(iBomb, "item_teamflag")) != -1)
+				{
+					//Ignore bombs not in play
+					if(GetEntProp(iBomb, Prop_Send, "m_nFlagStatus") == 0)
+						continue;
+					
+					//Ignore bombs not on our team
+					if (GetEntProp(iBomb, Prop_Send, "m_iTeamNum") != view_as<int>(TFTeam_Blue))
+						continue;
+					
+					int moveparent = GetEntPropEnt(iBomb, Prop_Send, "moveparent");
+					if(moveparent != -1 && moveparent <= MaxClients)
+					{
+						Annotate(NULL_VECTOR, client, "Escort the bomb!", INSTRUCTION_MULTIPLE, 6.0, moveparent);
+					}
+					else
+					{
+						Annotate(NULL_VECTOR, client, "Pickup the bomb!", INSTRUCTION_MULTIPLE, 6.0, iBomb);
+					}
+				}
+			}
+		}
+		
+		g_flNextInstructionTime[client] = GetGameTime() + 30.0; //To-Do make cvar for this
+	}
 }
 
 public Action Event_FlagEvent(Event event, const char[] name, bool dontBroadcast)
@@ -1558,13 +1529,33 @@ public Action Event_FlagEvent(Event event, const char[] name, bool dontBroadcast
 	}
 }
 
+stock float[] TF2_GetBombHatchPosition()
+{
+	float flOrigin[3];
+
+	int iHole = -1;	
+	while ((iHole = FindEntityByClassname(iHole, "func_breakable")) != -1)
+	{
+		char strName[32];
+		GetEntPropString(iHole, Prop_Data, "m_iName", strName, sizeof(strName));
+		
+		if(StrEqual(strName, "cap_hatch_glasswindow"))
+		{
+			GetEntPropVector(iHole, Prop_Send, "m_vecOrigin", flOrigin);
+			break;
+		}
+	}
+	
+	return flOrigin;
+}
+
 public void UpdateBombHud(int userid)
 {
 	int client = GetClientOfUserId(userid)
 	if(client > 0)
 	{
 		int iResource = FindEntityByClassname(-1, "tf_objective_resource");
-		SetEntProp(iResource, Prop_Send, "m_nFlagCarrierUpgradeLevel", g_iFlagCarrierUpgradeLevel[client]);
+		SetEntProp(iResource,      Prop_Send, "m_nFlagCarrierUpgradeLevel", g_iFlagCarrierUpgradeLevel[client]);
 		SetEntPropFloat(iResource, Prop_Send, "m_flMvMBaseBombUpgradeTime", (TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden)) ? -1.0 : GetGameTime());
 		SetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime", (TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden)) ? -1.0 : g_flNextBombUpgradeTime[client]);	
 	}
@@ -1779,7 +1770,8 @@ public Action Listener_ChoseHuman(int client, char[] command, int args)
 		{
 			char strArg1[8];
 			GetCmdArg(1, strArg1, sizeof(strArg1));
-
+			
+			//Player pressed F4
 			if(StringToInt(strArg1) == 1)
 				g_bCanPlayAsBot[client] = false;
 		}
@@ -2127,25 +2119,29 @@ stock void TF2_RestoreBot(int client)
 		TF2_RemoveCondition(iBot, TFCond_Stealthed);
 		TF2_RemoveCondition(iBot, TFCond_Dazed);
 		
-		AcceptEntityInput(iBot,"ClearParent");
+		SDKUnhook(iBot, SDKHook_SetTransmit, Hook_ControlledBotTransmit);
 		
-		SetEntProp(iBot, Prop_Send, "m_nSolidType", SOLID_BBOX);
+		AcceptEntityInput(iBot, "ClearParent");
+		
+		SetEntProp(iBot, Prop_Send, "m_nSolidType",     SOLID_BBOX);
 		SetEntProp(iBot, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
-		SetEntProp(iBot, Prop_Send, "m_usSolidFlags", FSOLID_NOT_STANDABLE);
-		SetEntPropFloat(iBot, Prop_Send, "m_flModelScale", GetEntPropFloat(client, Prop_Send, "m_flModelScale"));
-		SetEntPropFloat(iBot, Prop_Send, "m_flRageMeter", GetEntPropFloat(client, Prop_Send, "m_flRageMeter"));
+		SetEntProp(iBot, Prop_Send, "m_usSolidFlags",   FSOLID_NOT_STANDABLE);
 		
-		g_bBlockRagdoll = true;
-	
+		SetEntPropFloat(iBot, Prop_Send, "m_flModelScale", GetEntPropFloat(client, Prop_Send, "m_flModelScale"));
+		SetEntPropFloat(iBot, Prop_Send, "m_flRageMeter",  GetEntPropFloat(client, Prop_Send, "m_flRageMeter"));
+		
 		float flPos[3], flAng[3], flVelocity[3];
 		GetClientAbsOrigin(client, flPos);
 		GetClientEyeAngles(client, flAng);
 		GetEntPropVector(client, Prop_Data, "m_vecVelocity", flVelocity);
-	
+		
 		SetEntityMoveType(iBot, MOVETYPE_WALK);
 		TeleportEntity(iBot, flPos, flAng, flVelocity);
 		
 		OnClientPutInServer(iBot);
+		
+		g_bBlockRagdoll = true;
+		g_flSpawnTime[iBot] = GetGameTime();
 	}
 
 	TF2_ClearBot(client);
@@ -2202,8 +2198,11 @@ stock void TF2_KillBot(int client, int attacker = -1)
 		{
 			if (0 < attacker <= MaxClients)
 			{
-				iWeapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");//If the bot was controlled, and killed by a red sniper, this will fix the money not being auto-distribued.
-				if (iWeapon <= 0) iWeapon = attacker
+				//If the bot was controlled, and killed by a red sniper, this will fix the money not being auto-distribued.
+				iWeapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+				
+				if (iWeapon <= 0) 
+					iWeapon = attacker
 			}
 		}
 		
@@ -2239,8 +2238,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	TF2_SetFakeClient(client, true);
 	
 	//New hot technology
-	g_flControlEndTime[client] = GetGameTime() + 35.0;
-	
+	g_flControlEndTime[client]      = GetGameTime() + 35.0;
 	g_flNextInstructionTime[client] = GetGameTime() + 3.0;
 	
 	//Set HP
@@ -2299,17 +2297,6 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 		TF2_AddCondition(iTarget, TFCond_Taunting, 5.0);
 	}
 	
-	if(TF2_GetPlayerClass(iTarget) == TFClass_Spy)
-	{
-		int iDisguiseClass	= GetEntProp(iTarget, Prop_Send, "m_nDisguiseClass");
-		int iDisguiseTarget = GetEntProp(iTarget, Prop_Send, "m_iDisguiseTargetIndex");
-
-		if(iDisguiseTarget > 0 && iDisguiseTarget <= MaxClients && IsClientInGame(iDisguiseTarget) && iDisguiseClass > 0)	
-			TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass), iDisguiseTarget);
-		else if(iDisguiseClass > 0)
-			TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass));		
-	}
-	
 	//Start the engines		
 	if(TF2_IsGiant(iTarget))		
 	{		
@@ -2335,8 +2322,6 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	//Fix some bugs...	
 	TF2_RemoveCondition(client, TFCond_Zoomed);		
 	TF2_RemoveCondition(client, TFCond_Slowed);
-	TF2_RemoveCondition(client, TFCond_Healing);
-	TF2_RemoveCondition(iTarget, TFCond_Healing);
 	
 	//Mirror conditions
 	for (int cond = 0; cond <= view_as<int>(TFCond_SpawnOutline); ++cond)
@@ -2419,7 +2404,7 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 {
 	//Check to see if the player is valid and is still controlling bot.
 	int client = GetClientOfUserId(iUserId);
-	if(client >= 1 && client <= MaxClients && IsClientInGame(client) && g_bControllingBot[client])
+	if(client > 0 && client <= MaxClients && IsClientInGame(client) && g_bControllingBot[client])
 	{
 		int iBot = GetClientOfUserId(g_iPlayersBot[client]);
 		if(iBot <= 0)
@@ -2444,7 +2429,7 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 			//Copy bomb carrier upgrade level
 			int iResource = FindEntityByClassname(-1, "tf_objective_resource");
 			g_iFlagCarrierUpgradeLevel[client] = GetEntProp(iResource, Prop_Send, "m_nFlagCarrierUpgradeLevel");
-			g_flNextBombUpgradeTime[client] = GetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime");	
+			g_flNextBombUpgradeTime[client]    = GetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime");	
 		}
 		
 		//Copy medigun data
@@ -2463,16 +2448,29 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 				SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
 				
 				//Because
-				SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0); //Hide the medigun effect
-				SetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget", -1);   //Remove the medigun beam
-				SetEntProp(tMedigun, Prop_Send, "m_bHealing", 0);	
+				SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0);   //Hide the medigun effect
+				SetEntPropEnt(tMedigun,   Prop_Send, "m_hHealingTarget", -1);   //Remove the medigun beam
+				SetEntProp(tMedigun,      Prop_Send, "m_bHealing", 0);	
+			}
+		}
+		
+		//Disguise after we have received our disguise items.
+		if(TF2_GetPlayerClass(iBot) == TFClass_Spy)
+		{
+			int iDisguiseClass	= GetEntProp(iBot, Prop_Send, "m_nDisguiseClass");
+			int iDisguiseTarget = GetEntProp(iBot, Prop_Send, "m_iDisguiseTargetIndex");
+			
+			if(iDisguiseTarget > 0 && iDisguiseTarget <= MaxClients && IsClientInGame(iDisguiseTarget) && iDisguiseClass > 0)
+			{
+				TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass), iDisguiseTarget);
+			}
+			else if(iDisguiseClass > 0)
+			{
+				TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass));
 			}
 		}
 		
 		SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
-		
-		Handle msg = StartMessageOne("PlayerPickupWeapon", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
-		if (msg != null) EndMessage();
 	}
 
 	return Plugin_Handled;
@@ -2515,6 +2513,8 @@ stock void TF2_MirrorItems(int iTarget, int client)
 	}
 	else
 	{
+		//Mirror unrestricted weapon + utility weapons
+	
 		int iEntity = -1;
 		
 		switch(iWeaponRestriction)
@@ -2523,7 +2523,7 @@ stock void TF2_MirrorItems(int iTarget, int client)
 			case SECONDARYONLY:	iEntity = GetPlayerWeaponSlot(iTarget, view_as<int>(TFWeaponSlot_Secondary));
 			case MELEEONLY:		iEntity = GetPlayerWeaponSlot(iTarget, view_as<int>(TFWeaponSlot_Melee));
 		}
-
+		
 		if(IsValidEntity(iEntity))
 		{
 			char strClass[64];
@@ -2541,7 +2541,33 @@ stock void TF2_MirrorItems(int iTarget, int client)
 				}
 			}
 			
-			GiveItem(client, iDefIndex, strClass, iCount, iAttribList, flAttribValues, true);
+			GiveItem(client, iDefIndex, strClass, iCount, iAttribList, flAttribValues, GetEntPropEnt(iTarget, Prop_Data, "m_hActiveWeapon") == iEntity ? true : false);
+		}
+		
+		//Always mirror the "utility" weapons
+		for (int w = view_as<int>(TFWeaponSlot_Grenade); w <= view_as<int>(TFWeaponSlot_PDA); w++)
+		{
+			iEntity = GetPlayerWeaponSlot(iTarget, w);
+		
+			if(IsValidEntity(iEntity))
+			{
+				char strClass[64];
+				GetEntityClassname(iEntity, strClass, sizeof(strClass));
+				
+				int iDefIndex = GetEntProp(iEntity, Prop_Send, "m_iItemDefinitionIndex");
+			
+				int iCount = TF2Attrib_ListDefIndices(iEntity, iAttribList);
+				if (iCount > 0)
+				{
+					for (int i = 0; i < iCount; i++)
+					{
+						aAttr = TF2Attrib_GetByDefIndex(iEntity, iAttribList[i]);
+						flAttribValues[i] = TF2Attrib_GetValue(aAttr);
+					}
+				}
+				
+				GiveItem(client, iDefIndex, strClass, iCount, iAttribList, flAttribValues, GetEntPropEnt(iTarget, Prop_Data, "m_hActiveWeapon") == iEntity ? true : false);
+			}
 		}
 	}
 
@@ -2582,6 +2608,9 @@ stock void TF2_MirrorItems(int iTarget, int client)
 			TF2Attrib_SetByDefIndex(client, iAttribList[i], flAttribValues[i]);
 		}
 	}
+	
+	Handle msg = StartMessageOne("PlayerPickupWeapon", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
+	if (msg != null) EndMessage();
 }
 
 stock void TF2_RemoveAllWearables(int client)
@@ -2617,28 +2646,6 @@ stock void TF2_SetObserved(int client, int iObserved, int iObserveMode = -1)
 stock bool TF2_IsGiant(int client)
 {
 	return view_as<bool>(GetEntProp(client, Prop_Send, "m_bIsMiniBoss"));
-}
-
-stock bool TF2_HasGateBotItem(int client)
-{
-	int wearable = -1;
-	while ((wearable = FindEntityByClassname(wearable, "tf_wearable")) != -1)
-	{
-		int iDefIndex = GetEntProp(wearable, Prop_Send, "m_iItemDefinitionIndex");
-		
-		switch(iDefIndex)
-		{
-			case 1057, 1058, 1059, 1060, 1061, 1062, 1063, 1064, 1065:
-			{
-				int iOwner = GetEntPropEnt(wearable, Prop_Send, "m_hOwnerEntity");
-				
-				if(iOwner == client)
-					return true;
-			}
-		}
-	}
-	
-	return false;
 }
 
 stock bool TF2_HasBomb(int client)
@@ -2784,23 +2791,6 @@ stock bool TF2_ObservedIsValidClient(int observer)
 	return false;
 }
 
-stock void TF2_ObservedIsNotValidReason(int observer, char[] strBuffer, int iMaxLenght)
-{
-	if(GetEntProp(observer, Prop_Send, "m_iObserverMode") == 4 || GetEntProp(observer, Prop_Send, "m_iObserverMode") == 5)
-	{
-		int iObserved = GetEntPropEnt(observer, Prop_Send, "m_hObserverTarget");
-		
-		if(iObserved > 0 && iObserved <= MaxClients && IsClientInGame(iObserved) && IsFakeClient(iObserved))
-		{
-			if(!IsPlayerAlive(iObserved))										Format(strBuffer, iMaxLenght, "this bot is dead");
-			else if(g_bIsControlled[iObserved])									Format(strBuffer, iMaxLenght, "this bot is controlled by someone else");
-			else if(TF2_IsPlayerInCondition(iObserved, TFCond_MVMBotRadiowave))	Format(strBuffer, iMaxLenght, "this bot is stunned");
-			else if(TF2_IsPlayerInCondition(iObserved, TFCond_Taunting))		Format(strBuffer, iMaxLenght, "this bot is taunting");
-			else if(GetEntProp(iObserved, Prop_Data, "m_takedamage") == 0)		Format(strBuffer, iMaxLenght, "this bot is about to explode");
-		}
-	}
-}
-
 stock int TF2_FindNearestHint(int client, const char[] strHint = "bot_hint_engineer_nest")
 {
 	//bot_hint_teleporter_exit
@@ -2861,41 +2851,27 @@ stock void TF2_DetonateBuster(int client)
 
 stock int TF2_FindTeleNearestToBombHole()
 {
-	int iHole = -1;	
-	while ((iHole = FindEntityByClassname(iHole, "func_breakable")) != -1)
-	{
-		char strName[32];
-		GetEntPropString(iHole, Prop_Data, "m_iName", strName, sizeof(strName));
-		
-		if(StrEqual(strName, "cap_hatch_glasswindow"))
-			break;
-	}
-
+	float flOrigin[3]; flOrigin = TF2_GetBombHatchPosition();
+	
+	float flBestDistance = 999999.0;
+	
 	int iBestEntity = -1;
-
-	if(IsValidEntity(iHole))
+	
+	int iEnt = -1;
+	while ((iEnt = FindEntityByClassname(iEnt, "obj_teleporter")) != -1)
 	{
-		float flOrigin[3];
-		GetEntPropVector(iHole, Prop_Send, "m_vecOrigin", flOrigin);
-		
-		float flBestDistance = 999999.0;
-		
-		int iEnt = -1;
-		while ((iEnt = FindEntityByClassname(iEnt, "obj_teleporter")) != -1)
+		if(GetEntProp(iEnt, Prop_Send, "m_iTeamNum") == view_as<int>(TFTeam_Blue)
+		&& !GetEntProp(iEnt, Prop_Send, "m_bHasSapper") && !GetEntProp(iEnt, Prop_Send, "m_bBuilding") 
+		&& !GetEntProp(iEnt, Prop_Send, "m_bPlacing") && !GetEntProp(iEnt, Prop_Send, "m_bDisabled"))
 		{
-			if(GetEntProp(iEnt, Prop_Send, "m_iTeamNum") == view_as<int>(TFTeam_Blue)
-			&& !GetEntProp(iEnt, Prop_Send, "m_bHasSapper") && !GetEntProp(iEnt, Prop_Send, "m_bBuilding") 
-			&& !GetEntProp(iEnt, Prop_Send, "m_bPlacing") && !GetEntProp(iEnt, Prop_Send, "m_bDisabled"))
+			float flPos[3];
+			GetEntPropVector(iEnt, Prop_Data, "m_vecOrigin", flPos);
+			
+			float flDistance = GetVectorDistance(flOrigin, flPos);
+			if(flDistance <= flBestDistance)
 			{
-				float flPos[3];
-				GetEntPropVector(iEnt, Prop_Data, "m_vecOrigin", flPos);
-				
-				float flDistance = GetVectorDistance(flOrigin, flPos);
-				if(flDistance <= flBestDistance)
-				{
-					flBestDistance = flDistance;
-					iBestEntity = iEnt;
-				}
+				flBestDistance = flDistance;
+				iBestEntity = iEnt;
 			}
 		}
 	}
