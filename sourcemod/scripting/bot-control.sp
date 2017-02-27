@@ -876,24 +876,36 @@ public Action OnFlagTouch(int iEntity, int iOther)
 	
 	//Controlled bots should never be able to pickup bomb
 	if(g_bIsControlled[iOther])
+	{
+	//	PrintToServer("%N was denied pickup: g_bIsControlled", iOther);
 		return Plugin_Handled;
+	}
 	
 	//Gatebots ignore bombs and only capture gates
 	if(TF2_HasTag(iOther, "bot_gatebot"))
+	{
+	//	PrintToServer("%N was denied pickup: bot_gatebot", iOther);
 		return Plugin_Handled;
+	}
 	
 	//Sentry busters bust sentries not mann co
 	if(g_bIsSentryBuster[iOther])
+	{
+	//	PrintToServer("%N was denied pickup: g_bIsSentryBuster", iOther);
 		return Plugin_Handled;
+	}
 	
 	if (g_bControllingBot[iOther])
 	{
 		int iBot = GetClientOfUserId(g_iPlayersBot[iOther]);
-		if (iBot > 0 && iBot <= MaxClients)
+		if (iBot > 0 && iBot <= MaxClients && TF2_GetBotSquad(iBot) != Address_Null)
 		{
 			int iLeader = TF2_GetBotSquadLeader(iBot);
 			if (iLeader != iOther)
+			{
+			//	PrintToServer("%N was denied pickup: iLeader != iOther", iOther);
 				return Plugin_Handled;
+			}
 		}
 	}
 	
@@ -1539,7 +1551,7 @@ stock float[] TF2_GetBombHatchPosition()
 		char strName[32];
 		GetEntPropString(iHole, Prop_Data, "m_iName", strName, sizeof(strName));
 		
-		if(StrEqual(strName, "cap_hatch_glasswindow"))
+		if(StrContains(strName, "hatch", false) != -1)
 		{
 			GetEntPropVector(iHole, Prop_Send, "m_vecOrigin", flOrigin);
 			break;
@@ -1567,6 +1579,8 @@ public void Event_ResetBots(Event event, const char[] name, bool dontBroadcast)
 	{
 		if(IsClientInGame(client))
 		{
+			g_bCanPlayAsBot[client] = true;
+		
 			if(!IsFakeClient(client))
 			{
 				if(g_bControllingBot[client])
