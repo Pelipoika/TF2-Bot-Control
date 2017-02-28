@@ -171,7 +171,7 @@ enum
 Handle g_hHudInfo;
 Handle g_hHudReload;
 
-//Cvars
+//ConVars
 ConVar g_cvCTFBotSquadEscortRange;
 
 //SDKCalls
@@ -182,7 +182,6 @@ Handle g_hSDKGetSquadLeader;
 Handle g_hSDKGetMaxClip;
 Handle g_hSDKPickup;
 Handle g_hSDKRemoveObject;
-Handle g_hSDKUpdateSkin;
 Handle g_hSDKHasTag;
 
 //DHooks
@@ -262,12 +261,6 @@ public void OnPluginStart()
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::RemoveObject");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);	//CBaseObject
 	if ((g_hSDKRemoveObject = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed To create SDKCall for CTFPlayer::RemoveObject signature");
-
-	//This call is used to fix valves shit code
-	StartPrepSDKCall(SDKCall_Player);
-	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::UpdateSkin");
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-	if ((g_hSDKUpdateSkin = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed To create SDKCall for CTFPlayer::UpdateSkin signature");
 
 	//This call is used to make sentry busters behave nicely
 	StartPrepSDKCall(SDKCall_Player); 
@@ -2483,8 +2476,6 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 				TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass));
 			}
 		}
-		
-		SDKCall(g_hSDKUpdateSkin, client, GetClientTeam(client));
 	}
 
 	return Plugin_Handled;
