@@ -93,9 +93,7 @@ enum
 #define	EF_ITEM_BLINK			0x100	// blink an item so that the user notices it.
 #define	EF_PARENT_ANIMATES		0x200	// always assume that the parent entity is animating
 
-#define	MAX_EDICT_BITS			11			// # of bits needed to represent max edicts
-#define NUM_ENT_ENTRY_BITS		(MAX_EDICT_BITS + 1)
-#define NUM_ENT_ENTRIES			(1 << NUM_ENT_ENTRY_BITS)
+#define NUM_ENT_ENTRIES			(1 << 12)
 #define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
 
 #define SOLID_NONE			0	// no solid model
@@ -234,6 +232,7 @@ float g_flBombDeployTime[MAXPLAYERS+1];
 float g_flNextBombUpgradeTime[MAXPLAYERS+1];
 
 //+map  workshop/601600702
+//team_control_point
 
 #define PLUGIN_VERSION "1.0"
 
@@ -594,7 +593,7 @@ public MRESReturn CFilterTFBotHasTag(int iFilter, Handle hReturn, Handle hParams
 		if(StrEqual(iEntityClassname, "trigger_add_tf_player_condition"))
 			bResult = !bResult;
 		
-		PrintToServer("Filter %i on entity %s asks: HasTag %N %s ? %s", iFilter, iEntityClassname, iBot, strTags, bResult ? "Yes" : "No");
+	//	PrintToServer("Filter %i on entity %s asks: HasTag %N %s ? %s", iFilter, iEntityClassname, iBot, strTags, bResult ? "Yes" : "No");
 		
 		DHookSetReturn(hReturn, bResult);
 		return MRES_Supercede;
@@ -1446,25 +1445,63 @@ void TF2_InstructPlayer(int client)
 			{
 				//Not in squad
 				
-				int iBomb = -1;
-				while ((iBomb = FindEntityByClassname(iBomb, "item_teamflag")) != -1)
+				//If they're a gatebot tell them to capture the next available gate.
+				if(TF2_HasTag(iBot, "bot_gatebot"))
 				{
-					//Ignore bombs not in play
-					if(GetEntProp(iBomb, Prop_Send, "m_nFlagStatus") == 0)
-						continue;
-					
-					//Ignore bombs not on our team
-					if (GetEntProp(iBomb, Prop_Send, "m_iTeamNum") != view_as<int>(TFTeam_Blue))
-						continue;
-					
-					int moveparent = GetEntPropEnt(iBomb, Prop_Send, "moveparent");
-					if(moveparent != -1 && moveparent <= MaxClients)
+					int iTrigger = -1;
+					while ((iTrigger = FindEntityByClassname(iTrigger, "trigger_timer_door")) != -1)
 					{
-						Annotate(NULL_VECTOR, client, "Escort the bomb!", INSTRUCTION_MULTIPLE, 6.0, moveparent);
+						char iszCapPointName[64];
+						GetEntPropString(iTrigger, Prop_Data, "m_iszCapPointName", iszCapPointName, sizeof(iszCapPointName));
+						
+						bool bDisabled = !!GetEntProp(iTrigger, Prop_Data, "m_bDisabled");
+						
+						if(!bDisabled)
+						{
+							//Found a non-disabled gate, now find the control point so we can display an annotation at it.
+							int iPoint = -1;
+							while ((iPoint = FindEntityByClassname(iPoint, "team_control_point")) != -1)
+							{
+								char strName[64];
+								GetEntPropString(iPoint, Prop_Data, "m_iName", strName, sizeof(strName));
+								
+								if(StrEqual(strName, iszCapPointName))
+								{
+									float vecOrigin[3];
+									GetEntPropVector(iPoint, Prop_Send, "m_vecOrigin", vecOrigin);
+									
+									Annotate(vecOrigin, client, "Capture!", iPoint, 8.0);
+									break;
+								}
+							}
+							
+							break;
+						}
 					}
-					else
+				}
+				else
+				{
+					//Not a gatebot, Get Bomb
+					int iBomb = -1;
+					while ((iBomb = FindEntityByClassname(iBomb, "item_teamflag")) != -1)
 					{
-						Annotate(NULL_VECTOR, client, "Pickup the bomb!", INSTRUCTION_MULTIPLE, 6.0, iBomb);
+						//Ignore bombs not in play
+						if(GetEntProp(iBomb, Prop_Send, "m_nFlagStatus") == 0)
+							continue;
+						
+						//Ignore bombs not on our team
+						if (GetEntProp(iBomb, Prop_Send, "m_iTeamNum") != view_as<int>(TFTeam_Blue))
+							continue;
+						
+						int moveparent = GetEntPropEnt(iBomb, Prop_Send, "moveparent");
+						if(moveparent != -1 && moveparent <= MaxClients)
+						{
+							Annotate(NULL_VECTOR, client, "Escort the bomb!", iBomb, 6.0, moveparent);
+						}
+						else
+						{
+							Annotate(NULL_VECTOR, client, "Pickup the bomb!", iBomb, 6.0, iBomb);
+						}
 					}
 				}
 			}
@@ -3157,7 +3194,7 @@ stock void Annotate(float flPos[3], int client, char[] strMsg, int iOffset = 0, 
 		event.SetFloat("worldPosY", flPos[1]);
 		event.SetFloat("worldPosZ", flPos[2]);
 		event.SetFloat("lifetime", flLifeTime);
-		event.SetInt("id", client + 8750 + iOffset);
+		event.SetInt("id", client + 8720 + iOffset);
 		if (entitytofollow != -1) event.SetInt("follow_entindex", entitytofollow);
 		event.SetString("text", strMsg);
 		event.SetString("play_sound", "vo/null.wav");
