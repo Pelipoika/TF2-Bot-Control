@@ -101,7 +101,12 @@
 			"CBaseEntity::ShouldTransmit"		
 			{		
 				"windows"	"18"		
-				"linux"		"19"		
+				"linux"		"19"
+			}
+			"CBaseEntity::WorldSpaceCenter"		
+			{		
+				"windows"	"149"		
+				"linux"		"150"
 			}
 			"CFilterTFBotHasTag::PassesFilterImpl" //(CBaseEntity *, CBaseEntity *)
 			{

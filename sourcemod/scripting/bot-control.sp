@@ -181,6 +181,7 @@ Handle g_hSDKGetMaxClip;
 Handle g_hSDKPickup;
 Handle g_hSDKRemoveObject;
 Handle g_hSDKHasTag;
+Handle g_hSDKWorldSpaceCenter;
 
 //DHooks
 Handle g_hIsValidTarget;
@@ -248,6 +249,12 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	Handle hConf = LoadGameConfigFile("bot-control");
+	
+	//This entity is used to get an entitys center position
+	StartPrepSDKCall(SDKCall_Entity);
+	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CBaseEntity::WorldSpaceCenter");
+	PrepSDKCall_SetReturnInfo(SDKType_Vector, SDKPass_ByRef);
+	if ((g_hSDKWorldSpaceCenter = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CBaseEntity::WorldSpaceCenter offset!");
 	
 	//This call is used to equip items on clients
 	StartPrepSDKCall(SDKCall_Player);
@@ -1076,7 +1083,16 @@ public void OnCurrencySpawnPost(int iCurrency)
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
 	if(IsFakeClient(client))
+	{
+		if(g_bIsControlled[client])
+		{
+			impulse = 0;
+			buttons = 0;
+			return Plugin_Changed;
+		}
+	
 		return Plugin_Continue;
+	}
 	
 	if(g_bControllingBot[client] && IsPlayerAlive(client) && (TF2_GetClientTeam(client) == TFTeam_Red || TF2_GetClientTeam(client) == TFTeam_Blue))
 	{
@@ -1458,23 +1474,7 @@ void TF2_InstructPlayer(int client)
 						
 						if(!bDisabled)
 						{
-							//Found a non-disabled gate, now find the control point so we can display an annotation at it.
-							int iPoint = -1;
-							while ((iPoint = FindEntityByClassname(iPoint, "team_control_point")) != -1)
-							{
-								char strName[64];
-								GetEntPropString(iPoint, Prop_Data, "m_iName", strName, sizeof(strName));
-								
-								if(StrEqual(strName, iszCapPointName))
-								{
-									float vecOrigin[3];
-									GetEntPropVector(iPoint, Prop_Send, "m_vecOrigin", vecOrigin);
-									
-									Annotate(vecOrigin, client, "Capture!", iPoint, 8.0);
-									break;
-								}
-							}
-							
+							Annotate(WorldSpaceCenter(iTrigger), client, "Capture!", iTrigger, 8.0);
 							break;
 						}
 					}
@@ -1496,7 +1496,7 @@ void TF2_InstructPlayer(int client)
 						int moveparent = GetEntPropEnt(iBomb, Prop_Send, "moveparent");
 						if(moveparent != -1 && moveparent <= MaxClients)
 						{
-							Annotate(NULL_VECTOR, client, "Escort the bomb!", iBomb, 6.0, moveparent);
+							Annotate(NULL_VECTOR, client, "Escort the bomb carrier!", iBomb, 6.0, moveparent);
 						}
 						else
 						{
@@ -1576,16 +1576,10 @@ stock float[] TF2_GetBombHatchPosition()
 	float flOrigin[3];
 
 	int iHole = -1;	
-	while ((iHole = FindEntityByClassname(iHole, "func_breakable")) != -1)
+	while ((iHole = FindEntityByClassname(iHole, "func_capturezone")) != -1)
 	{
-		char strName[32];
-		GetEntPropString(iHole, Prop_Data, "m_iName", strName, sizeof(strName));
-		
-		if(StrContains(strName, "hatch", false) != -1)
-		{
-			GetEntPropVector(iHole, Prop_Send, "m_vecOrigin", flOrigin);
-			break;
-		}
+		flOrigin = WorldSpaceCenter(iHole);
+		break;
 	}
 	
 	return flOrigin;
@@ -2748,6 +2742,14 @@ stock bool TF2_HasTag(int client, const char[] tag)
 	}
 	
 	return false;
+}
+
+stock float[] WorldSpaceCenter(int entity)
+{
+	float vecPos[3];
+	SDKCall(g_hSDKWorldSpaceCenter, entity, vecPos);
+	
+	return vecPos;
 }
 
 public void Frame_TF2_PickupBomb(DataPack pack)
