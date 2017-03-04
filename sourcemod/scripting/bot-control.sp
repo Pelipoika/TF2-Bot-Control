@@ -174,6 +174,7 @@ ConVar g_cvCTFBotSquadEscortRange;
 
 //SDKCalls
 Handle g_hSdkEquipWearable;
+Handle g_hSDKPlaySpecificSequence;
 Handle g_hSDKDispatchParticleEffect;
 Handle g_hSDKSetMission;
 Handle g_hSDKGetSquadLeader;
@@ -262,6 +263,12 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);	//tf_wearable
 	if ((g_hSdkEquipWearable = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::EquipWearable offset!"); 
 
+	//This call is used to set the deploy animation on the robots with the bomb
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::PlaySpecificSequence");
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);		//Sequence name
+	if ((g_hSDKPlaySpecificSequence = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFPlayer::PlaySpecificSequence signature!");
+
 	//This call is used to remove an objects owner
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::RemoveObject");
@@ -311,6 +318,18 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//silent pickup? or maybe it doesnt exist im not sure.
 	if ((g_hSDKPickup = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 	
+	//Patch out *::IsPlayer() call in CCaptureFlag::FlagTouch
+	Address FlagTouch = GameConfGetAddress(hConf, "FlagTouch");
+	if(FlagTouch == Address_Null)
+		SetFailState("Failed to find patch address of CCaptureFlag::FlagTouch");
+	
+	FlagTouch += view_as<Address>(46);	//Linux offset 44 and patch 6 bytes
+	
+	for (int i = 0; i < 2; i++)
+	{
+		StoreToAddress(FlagTouch + view_as<Address>(i), 0x90, NumberType_Int8);
+	}
+	
 	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
 	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetBotAttribs         += GameConfGetOffset(hConf, "m_nBotAttrs");	
 	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMin        += GameConfGetOffset(hConf, "m_flAutoJumpMin");
@@ -326,6 +345,7 @@ public void OnPluginStart()
 	DHookAddParam(g_hCTFPlayerShouldGib, HookParamType_ObjectPtr, -1, DHookPass_ByRef);
 	
 	iOffset = GameConfGetOffset(hConf, "CBaseEntity::ShouldTransmit");
+	if(iOffset == -1) SetFailState("Failed to get offset of CBaseEntity::ShouldTransmit");
 	g_hShouldTransmit = DHookCreate(iOffset, HookType_Entity, ReturnType_Int, ThisPointer_CBaseEntity, Hook_EntityShouldTransmit);
 	DHookAddParam(g_hShouldTransmit, HookParamType_ObjectPtr);
 	
@@ -514,48 +534,53 @@ public Action Command_Debug(int client, int args)
 		PrintToConsole(client, "g_bReloadingBarrage = %i", g_bReloadingBarrage[iTarget]);
 		PrintToConsole(client, "g_iPlayerAttributes = %i", g_iPlayerAttributes[iTarget]);
 		
-		for (int i = 1; i <= MaxClients; i++)
-		{
-			if(IsClientInGame(i))
-			{
-				int iMyBot = GetClientOfUserId(g_iPlayersBot[i]);
-				if (iMyBot == iTarget)
-				{
-					PrintToConsole(client, "-> -> \"%N\"s g_iPlayersBot is set to the bot you are debugging \"%N\"", iMyBot, iTarget);
-				}
-			}
-		}
-		
-		int iGun = -1;
-		while((iGun = FindEntityByClassname(iGun, "tf_weapon_medigun")) != -1)
-		{
-			int iHealTarget = GetEntPropEnt(iGun, Prop_Send, "m_hHealingTarget");
-			int iHealTarget2 = GetEntPropEnt(iGun, Prop_Data, "m_hHealingTarget");
-			
-			if(iHealTarget == iTarget)
-				PrintToConsole(client, "1 medigun %i is healing %N", iGun, iTarget);
-			else if(iHealTarget2 == iTarget)
-				PrintToConsole(client, "2 medigun %i is healing %N", iGun, iTarget);
-		}
+		Menu g_hMenuAttributes = new Menu(MenuAttributeHandler);
+		g_hMenuAttributes.SetTitle("Bot Attributes\n ");
+		g_hMenuAttributes.AddItem("1",  IsAttributeSet(iTarget, AGGRESSIVE)              ? "✅ AGGRESSIVE"              : "AGGRESSIVE");
+		g_hMenuAttributes.AddItem("2",  IsAttributeSet(iTarget, SUPPRESSFIRE)            ? "✅ SUPPRESSFIRE"            : "SUPPRESSFIRE");
+		g_hMenuAttributes.AddItem("3",  IsAttributeSet(iTarget, DISABLEDODGE)            ? "✅ DISABLEDODGE"            : "DISABLEDODGE");
+		g_hMenuAttributes.AddItem("4",  IsAttributeSet(iTarget, RETAINBUILDINGS)         ? "✅ RETAINBUILDINGS"         : "RETAINBUILDINGS");
+		g_hMenuAttributes.AddItem("5",  IsAttributeSet(iTarget, SPAWNWITHFULLCHARGE)     ? "✅ SPAWNWITHFULLCHARGE"     : "SPAWNWITHFULLCHARGE");
+		g_hMenuAttributes.AddItem("6",  IsAttributeSet(iTarget, ALWAYSCRIT)              ? "✅ ALWAYSCRIT"              : "ALWAYSCRIT");
+		g_hMenuAttributes.AddItem("7",  IsAttributeSet(iTarget, IGNOREENEMIES)           ? "✅ IGNOREENEMIES"           : "IGNOREENEMIES");
+		g_hMenuAttributes.AddItem("8",  IsAttributeSet(iTarget, HOLDFIREUNTILFULLRELOAD) ? "✅ HOLDFIREUNTILFULLRELOAD" : "HOLDFIREUNTILFULLRELOAD");
+		g_hMenuAttributes.AddItem("9",  IsAttributeSet(iTarget, ALWAYSFIREWEAPON)        ? "✅ ALWAYSFIREWEAPON"        : "ALWAYSFIREWEAPON");
+		g_hMenuAttributes.AddItem("10", IsAttributeSet(iTarget, TELEPORTTOHINT)          ? "✅ TELEPORTTOHINT"          : "TELEPORTTOHINT");
+		g_hMenuAttributes.AddItem("11", IsAttributeSet(iTarget, MINIBOSS)                ? "✅ MINIBOSS"                : "MINIBOSS");
+		g_hMenuAttributes.AddItem("12", IsAttributeSet(iTarget, USEBOSSHEALTHBAR)        ? "✅ USEBOSSHEALTHBAR"        : "USEBOSSHEALTHBAR");
+		g_hMenuAttributes.AddItem("13", IsAttributeSet(iTarget, IGNOREFLAG)              ? "✅ IGNOREFLAG"              : "IGNOREFLAG");
+		g_hMenuAttributes.AddItem("14", IsAttributeSet(iTarget, AUTOJUMP)                ? "✅ AUTOJUMP"                : "AUTOJUMP");
+		g_hMenuAttributes.AddItem("15", IsAttributeSet(iTarget, AIRCHARGEONLY)           ? "✅ AIRCHARGEONLY"           : "AIRCHARGEONLY");
+		g_hMenuAttributes.AddItem("16", IsAttributeSet(iTarget, VACCINATORBULLETS)       ? "✅ VACCINATORBULLETS"       : "VACCINATORBULLETS");
+		g_hMenuAttributes.AddItem("17", IsAttributeSet(iTarget, VACCINATORBLAST)         ? "✅ VACCINATORBLAST"         : "VACCINATORBLAST");
+		g_hMenuAttributes.AddItem("18", IsAttributeSet(iTarget, VACCINATORFIRE)          ? "✅ VACCINATORFIRE"          : "VACCINATORFIRE");
+		g_hMenuAttributes.AddItem("19", IsAttributeSet(iTarget, BULLETIMMUNE)            ? "✅ BULLETIMMUNE"            : "BULLETIMMUNE");
+		g_hMenuAttributes.AddItem("20", IsAttributeSet(iTarget, BLASTIMMUNE)             ? "✅ BLASTIMMUNE"             : "BLASTIMMUNE");
+		g_hMenuAttributes.AddItem("21", IsAttributeSet(iTarget, FIREIMMUNE)              ? "✅ FIREIMMUNE"              : "FIREIMMUNE");
+		g_hMenuAttributes.AddItem("22", IsAttributeSet(iTarget, PARACHUTE)               ? "✅ PARACHUTE"               : "PARACHUTE");
+		g_hMenuAttributes.AddItem("23", IsAttributeSet(iTarget, PROJECTILESHIELD)        ? "✅ PROJECTILESHIELD"        : "PROJECTILESHIELD");
+		g_hMenuAttributes.Display(client, MENU_TIME_FOREVER);
 		
 		PrintToConsole(client, "------------------------ END ---------------------\n");
-		
-		/*
-		//Players bot & player data
-		float g_flNextInstructionTime[MAXPLAYERS+1];
-		bool g_bRandomlyChooseBot[MAXPLAYERS+1];
-		
-		//Bot data
-		bool g_bDeploying[MAXPLAYERS+1];
-		
-		//Bomb data
-		int g_iFlagCarrierUpgradeLevel[MAXPLAYERS+1];
-		float g_flBombDeployTime[MAXPLAYERS+1];
-		float g_flNextBombUpgradeTime[MAXPLAYERS+1];
-		*/
 	}
 	
 	return Plugin_Handled;
+}
+
+stock bool IsAttributeSet(int client, AttributeType iAttrib)
+{
+	if(g_iPlayerAttributes[client] & view_as<int>(iAttrib))
+		return true;
+		
+	return false;
+}
+
+public int MenuAttributeHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	if(action == MenuAction_End)
+	{
+		delete menu;
+	}
 }
 
 public MRESReturn CFilterTFBotHasTag(int iFilter, Handle hReturn, Handle hParams)
@@ -2951,11 +2976,7 @@ stock int TF2_GetBotSquadLeader(int iBot)
 
 stock void TF2_PlayAnimation(int client, const char[] sAnim)
 {
-	int iFlags = GetCommandFlags("mp_playanimation"); 
-	
-	SetCommandFlags("mp_playanimation", iFlags & ~FCVAR_CHEAT ); 
-	ClientCommand(client, "mp_playanimation %s", sAnim); 
-	SetCommandFlags("mp_playanimation", iFlags|FCVAR_CHEAT);
+	SDKCall(g_hSDKPlaySpecificSequence, client, sAnim);
 }
 
 stock void TF2_TakeOverBuildings(int client, int newClient)

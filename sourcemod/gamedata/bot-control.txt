@@ -3,6 +3,20 @@
 	/* Team Fortress 2 */
 	"tf"
 	{
+		"Addresses"
+		{
+			"FlagTouch"
+			{
+				"windows"
+				{
+					"signature" "CCaptureFlag::FlagTouch"
+				}
+				"linux"
+				{
+					"signature" "CCaptureFlag::FlagTouch"
+				}
+			}
+		}
 		"Signatures"
 		{
 			"CTFBot::LeaveSquad"	//"Squad leader is dead"
@@ -10,6 +24,12 @@
 				"library"	"server"
 				"windows"	"\x56\x8B\xF1\x8B\x8E\xE8\x24\x00\x00"
 				"linux"		"@_ZN6CTFBot10LeaveSquadEv"
+			}
+			"CTFPlayer::PlaySpecificSequence"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\x75\x08\x57\x56\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xD8\x83\xFB\xFF\x74\x2A\x8B\x35\x2A\x2A\x2A\x2A\x8B\xCE\x8B\x16\xFF\x52\x2A\x8B\x8F\x2A\x2A\x2A\x2A\x53\x6A\x13\x8B\x01\xFF\x50"
+				"linux"		"@_ZN9CTFPlayer20PlaySpecificSequenceEPKc"
 			}
 			"CTFPlayer::RemoveObject"
 			{
@@ -46,6 +66,12 @@
 				"library"	"server"
 				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\x7D\x08\x8B\xD9\x85\xFF\x74\x2A\x8B\x07\x8B\xCF\xFF\x50\x08\x8B\x00\x89\x45\x08\xEB\x2A\xC7\x45\x08\xFF\xFF\xFF\xFF\x8D\x45\x08\x50\x8D\x8B\xA8\x06\x00\x00"
 				"linux"		"@_ZN12CCaptureFlag11AddFollowerEP6CTFBot"
+			}
+			"CCaptureFlag::FlagTouch" //(CBaseEntity *)
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x57\x8B\xF9\x80\xBF\x58\x06\x00\x00\x00"
+				"linux"		"@_ZN12CCaptureFlag9FlagTouchEP11CBaseEntity"
 			}
 			"CTFBot::HasTag"
 			{
@@ -98,6 +124,11 @@
 		}
 		"Offsets"
 		{
+			"CBaseEntity::IsPlayer"
+			{		
+				"windows"	"80"		
+				"linux"		"81"
+			}			
 			"CBaseEntity::ShouldTransmit"		
 			{		
 				"windows"	"18"		
