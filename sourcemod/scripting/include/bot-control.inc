@@ -4,9 +4,9 @@
 #define _botcontrol_included
 
 /**
- * Called whenever the function CTFBotSquad::ShouldSquadLeaderWaitForFormation is called.
+ * Called whenever the function CTFBotMedicHeal::SelectPatient is called.
  */
-forward Action CTFBotSquad_ShouldSquadLeaderWaitForFormation(Address pSquad, bool& bOriginalResult);
+forward Action CTFBotMedicHeal_SelectPatient(int actor, int old_patient, int &desiredPatient);
 
 /**
  * Called whenever the function CWeaponMedigun::AllowedToHealTarget is called.
