@@ -73,6 +73,12 @@
 				"windows"	"\x55\x8B\xEC\x57\x8B\xF9\x80\xBF\x58\x06\x00\x00\x00"
 				"linux"		"@_ZN12CCaptureFlag9FlagTouchEP11CBaseEntity"
 			}
+			"CTFBotMedicHeal::SelectPatient"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x58\x53\x8B\x5D\x08\x56\x57"
+				"linux"		"@_ZN15CTFBotMedicHeal13SelectPatientEP6CTFBotP9CTFPlayer"
+			}
 			"CTFBot::HasTag"
 			{
 				"library"	"server"

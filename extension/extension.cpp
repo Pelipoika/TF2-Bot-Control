@@ -8,7 +8,7 @@ IGameConfig *g_pGameConf = NULL;
 CDetour *g_RealizeSpyDetour = NULL;
 CDetour *g_GetEventChangeAttributes = NULL;
 CDetour *g_AddFollower = NULL;
-CDetour *g_ShouldSquadLeaderWaitForFormation = NULL;
+CDetour *g_SelectPatient = NULL;
 CDetour *g_AllowedToHealTarget = NULL;
 
 IForward *g_pForwardShouldSquadLeaderWaitForFormation = NULL;
@@ -55,23 +55,38 @@ DETOUR_DECL_MEMBER1(AddFollower, int, CTFPlayer*, player)
 	return DETOUR_MEMBER_CALL(AddFollower)(player);
 }
 
-DETOUR_DECL_MEMBER0(ShouldSquadLeaderWaitForFormation, bool)
+DETOUR_DECL_MEMBER2(SelectPatient, int, CTFBot*, bot, CTFPlayer*, player)
 {
-	bool bResult = DETOUR_MEMBER_CALL(ShouldSquadLeaderWaitForFormation)();
-	if(g_pForwardShouldSquadLeaderWaitForFormation != NULL)
-	{
-		g_pForwardShouldSquadLeaderWaitForFormation->PushCell((cell_t)(this));
-		
-		cell_t bOriginalResult = (bResult != 0);
-		g_pForwardShouldSquadLeaderWaitForFormation->PushCellByRef(&bOriginalResult);
-		
-		cell_t action = Pl_Continue;
-		g_pForwardShouldSquadLeaderWaitForFormation->Execute(&action);
+	cell_t iBot    = gamehelpers->EntityToBCompatRef((CBaseEntity *)(bot));
+	cell_t iPlayer = gamehelpers->EntityToBCompatRef((CBaseEntity *)(player));
 
-		if(action != Pl_Continue)
-			bResult = (bOriginalResult != 0);
+	int iReturn            = DETOUR_MEMBER_CALL(SelectPatient)(bot, player);
+	cell_t iOriginalTarget = gamehelpers->EntityToBCompatRef((CBaseEntity *)(iReturn));
+
+//	g_pSM->LogMessage(myself, "CTFBotMedicHeal::SelectPatient medic %d old_patient %d, new_patient = %d", iBot, iPlayer, iOriginalTarget);
+
+	if (g_pForwardSelectPatient != NULL)
+	{
+		g_pForwardSelectPatient->PushCell(iBot);	//medic
+		g_pForwardSelectPatient->PushCell(iPlayer);	//old_patient
+
+		cell_t iOriginalTargetReturn = iOriginalTarget;
+		g_pForwardSelectPatient->PushCellByRef(&iOriginalTargetReturn); //new_patient
+
+		cell_t result = 0;
+		g_pForwardSelectPatient->Execute(&result);
+
+		if (result > Pl_Continue)
+		{
+			//Convert given result to pointer
+			CBaseEntity * pEntity = gamehelpers->ReferenceToEntity(iOriginalTargetReturn);
+			cell_t iMyBRef = reinterpret_cast<cell_t>(pEntity);
+
+			return iMyBRef;
+		}		
 	}
-	return bResult;
+
+	return iReturn;
 }
 
 DETOUR_DECL_MEMBER1(AllowedToHealTarget, bool, CBaseEntity*, pEntity)
@@ -131,11 +146,11 @@ bool CBotControl::SDK_OnLoad(char *error, size_t maxlength, bool late)
 		g_pSM->LogMessage(myself, "CCaptureFlag::AddFollower detour enabled.");
 	}
 	
-	g_ShouldSquadLeaderWaitForFormation = DETOUR_CREATE_MEMBER(ShouldSquadLeaderWaitForFormation, "CTFBotSquad::ShouldSquadLeaderWaitForFormation");
-	if(g_ShouldSquadLeaderWaitForFormation != NULL)
+	g_SelectPatient = DETOUR_CREATE_MEMBER(SelectPatient, "CTFBotMedicHeal::SelectPatient");
+	if(g_SelectPatient != NULL)
 	{
-		g_ShouldSquadLeaderWaitForFormation->EnableDetour();
-		g_pSM->LogMessage(myself, "CTFBotSquad::ShouldSquadLeaderWaitForFormation detour enabled.");
+		g_SelectPatient->EnableDetour();
+		g_pSM->LogMessage(myself, "CTFBotSquad::SelectPatient detour enabled.");
 	}
 	
 	g_AllowedToHealTarget = DETOUR_CREATE_MEMBER(AllowedToHealTarget, "CWeaponMedigun::AllowedToHealTarget");
@@ -146,7 +161,7 @@ bool CBotControl::SDK_OnLoad(char *error, size_t maxlength, bool late)
 	}
 	
 	//Forwards
-	g_pForwardShouldSquadLeaderWaitForFormation = forwards->CreateForward("CTFBotSquad_ShouldSquadLeaderWaitForFormation", ET_Event, 2, NULL, Param_Cell, Param_CellByRef);
+	g_pForwardSelectPatient = forwards->CreateForward("CTFBotMedicHeal_SelectPatient", ET_Event, 3, NULL, Param_Cell, Param_Cell, Param_CellByRef);
 	g_pForwardAllowedToHealTarget = forwards->CreateForward("CWeaponMedigun_IsAllowedToHealTarget", ET_Event, 3, NULL, Param_Cell, Param_Cell, Param_CellByRef);
 	
 	return true;
@@ -159,7 +174,7 @@ void CBotControl::SDK_OnUnload()
 	if(g_RealizeSpyDetour != NULL) g_RealizeSpyDetour->Destroy();
 	if(g_GetEventChangeAttributes != NULL) g_GetEventChangeAttributes->Destroy();
 	if(g_AddFollower != NULL) g_AddFollower->Destroy();
-	if(g_ShouldSquadLeaderWaitForFormation != NULL) g_ShouldSquadLeaderWaitForFormation->Destroy();
+	if(g_SelectPatient != NULL) g_SelectPatient->Destroy();
 	if(g_AllowedToHealTarget != NULL) g_AllowedToHealTarget->Destroy();
 	
 	if(g_pForwardShouldSquadLeaderWaitForFormation != NULL) forwards->ReleaseForward(g_pForwardShouldSquadLeaderWaitForFormation);

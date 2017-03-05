@@ -39,7 +39,7 @@
 
 /* Basic information exposed publicly */
 #define SMEXT_CONF_NAME			"Bot Control Extension"
-#define SMEXT_CONF_DESCRIPTION	"i blame valve"
+#define SMEXT_CONF_DESCRIPTION	"Fixes to crashes and stuff"
 #define SMEXT_CONF_VERSION		"9001"
 #define SMEXT_CONF_AUTHOR		"Pelipoika (with modifications by Benoist3012)"
 #define SMEXT_CONF_URL			""
