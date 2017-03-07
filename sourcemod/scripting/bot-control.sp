@@ -96,58 +96,6 @@ enum
 #define NUM_ENT_ENTRIES			(1 << 12)
 #define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
 
-#define SOLID_NONE			0	// no solid model
-#define SOLID_BSP			1	// a BSP tree
-#define SOLID_BBOX			2	// an AABB
-#define SOLID_OBB			3	// an OBB (not implemented yet)
-#define SOLID_OBB_YAW		4	// an OBB, constrained so that it can only yaw
-#define SOLID_CUSTOM		5	// Always call into the entity for tests
-#define SOLID_VPHYSICS		6	// solid vphysics object, get vcollide from the model and collide with that
-#define SOLID_LAST			7
-
-
-#define FSOLID_CUSTOMRAYTEST		0x0001	// Ignore solid type + always call into the entity for ray tests
-#define FSOLID_CUSTOMBOXTEST		0x0002	// Ignore solid type + always call into the entity for swept box tests
-#define	FSOLID_NOT_SOLID			0x0004	// Are we currently not solid?
-#define	FSOLID_TRIGGER				0x0008	// This is something may be collideable but fires touch functions
-											// even when it's not collideable (when the FSOLID_NOT_SOLID flag is set)
-#define FSOLID_NOT_STANDABLE		0x0010	// You can't stand on this
-#define FSOLID_VOLUME_CONTENTS		0x0020	// Contains volumetric contents (like water)
-#define FSOLID_FORCE_WORLD_ALIGNED	0x0040	// Forces the collision rep to be world-aligned even if it's SOLID_BSP or SOLID_VPHYSICS
-#define FSOLID_USE_TRIGGER_BOUNDS	0x0080	// Uses a special trigger bounds separate from the normal OBB
-#define FSOLID_ROOT_PARENT_ALIGNED	0x0100	// Collisions are defined in root parent's local coordinate space
-#define FSOLID_TRIGGER_TOUCH_DEBRIS	0x0200	// This trigger will touch debris objects
-
-#define FSOLID_MAX_BITS				10
-
-enum
-{
-	COLLISION_GROUP_NONE  = 0,
-	COLLISION_GROUP_DEBRIS,			// Collides with nothing but world and static stuff
-	COLLISION_GROUP_DEBRIS_TRIGGER, // Same as debris, but hits triggers
-	COLLISION_GROUP_INTERACTIVE_DEBRIS,	// Collides with everything except other interactive debris or debris
-	COLLISION_GROUP_INTERACTIVE,	// Collides with everything except interactive debris or debris
-	COLLISION_GROUP_PLAYER,
-	COLLISION_GROUP_BREAKABLE_GLASS,
-	COLLISION_GROUP_VEHICLE,
-	COLLISION_GROUP_PLAYER_MOVEMENT,  // For HL2, same as Collision_Group_Player, for
-										// TF2, this filters out other players and CBaseObjects
-	COLLISION_GROUP_NPC,			// Generic NPC group
-	COLLISION_GROUP_IN_VEHICLE,		// for any entity inside a vehicle
-	COLLISION_GROUP_WEAPON,			// for any weapons that need collision detection
-	COLLISION_GROUP_VEHICLE_CLIP,	// vehicle clip brush to restrict vehicle movement
-	COLLISION_GROUP_PROJECTILE,		// Projectiles!
-	COLLISION_GROUP_DOOR_BLOCKER,	// Blocks entities not permitted to get near moving doors
-	COLLISION_GROUP_PASSABLE_DOOR,	// Doors that the player shouldn't collide with
-	COLLISION_GROUP_DISSOLVING,		// Things that are dissolving are in this group
-	COLLISION_GROUP_PUSHAWAY,		// Nonsolid on client and server, pushaway in player code
-
-	COLLISION_GROUP_NPC_ACTOR,		// Used so NPCs in scripts ignore the player.
-	COLLISION_GROUP_NPC_SCRIPTED,	// USed for NPCs in scripts that should not collide with each other
-
-	LAST_SHARED_COLLISION_GROUP
-};
-
 #define BUSTER_SND_LOOP			"mvm/sentrybuster/mvm_sentrybuster_loop.wav"
 #define GIANTSCOUT_SND_LOOP		"mvm/giant_scout/giant_scout_loop.wav"
 #define GIANTSOLDIER_SND_LOOP	"mvm/giant_soldier/giant_soldier_loop.wav"
@@ -163,8 +111,6 @@ enum
 #define FL_EDICT_ALWAYS		(1<<3)	// always transmit this entity
 #define FL_EDICT_DONTSEND	(1<<4)	// don't transmit this entity
 #define FL_EDICT_PVSCHECK	(1<<5)	// always transmit entity, but cull against PVS
-
-#define PLAYERANIMEVENT_CUSTOM_GESTURE      20
 
 Handle g_hHudInfo;
 Handle g_hHudReload;
@@ -2350,10 +2296,12 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	Address TargetSquad = TF2_GetBotSquad(iTarget);
 	if(TargetSquad != Address_Null)
 	{	
+		int iLeader = SDKCall(g_hSDKGetSquadLeader, TargetSquad);
+	
 		//Everyone but medics leave the targets squad
 		for (int i = 1; i <= MaxClients; i++)
 		{
-			if(!IsClientInGame(i) || !IsFakeClient(i) || i == iTarget)
+			if(!IsClientInGame(i) || !IsFakeClient(i) || i == iTarget || i == iLeader)
 				continue;
 				
 			if(TF2_GetPlayerClass(i) != TFClass_Medic)
