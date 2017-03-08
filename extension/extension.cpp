@@ -22,7 +22,7 @@ DETOUR_DECL_MEMBER1(RealizeSpy, int, CTFPlayer *, player)
 	return 0;
 }
 
-DETOUR_DECL_STATIC4(int, CollectPlayers_CTFBot, CUtlVector<CTFBot *> *playerVector, int team, bool isAlive, bool shouldAppend)
+DETOUR_DECL_STATIC4(CollectPlayers_CTFBot, int, CUtlVector<CTFBot *> *, playerVector, int, team, bool, isAlive, bool, shouldAppend)
 {
 	if (!shouldAppend) 
 	{
@@ -31,11 +31,11 @@ DETOUR_DECL_STATIC4(int, CollectPlayers_CTFBot, CUtlVector<CTFBot *> *playerVect
 	
 	for (int i = 1; i <= playerhelpers->GetMaxClients(); ++i) 
 	{
-		IGamePlayer *pPlayer = playerhelpers->GetGamePlayer(index);
-		IPLayerInfo *pInfo   = pPlayer->GetPlayerInfo();
+		IGamePlayer *pPlayer = playerhelpers->GetGamePlayer(i);
+		IPlayerInfo *pInfo   = pPlayer->GetPlayerInfo();
 
 		if (pPlayer == nullptr)                                   continue;
-		if (!pPlayer->IsPlayer())                                 continue;
+		if (!pInfo->IsPlayer())                                   continue;
 		if (!pPlayer->IsConnected())                              continue;
 		if (team != TEAM_ANY && pInfo->GetTeamIndex() != team)    continue;
 		if (isAlive && !pInfo->IsDead())                          continue;
@@ -43,7 +43,8 @@ DETOUR_DECL_STATIC4(int, CollectPlayers_CTFBot, CUtlVector<CTFBot *> *playerVect
 		/* actually confirm that they're a Bot */
 		if(pPlayer->IsFakeClient())
 		{
-			playerVector->AddToTail(pPlayer);
+			CTFBot *bot = (CTFBot *)gamehelpers->ReferenceToEntity(pPlayer->GetIndex());
+			playerVector->AddToTail(bot);
 		}
 	}
 	
