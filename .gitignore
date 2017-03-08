@@ -36,3 +36,5 @@ obj*/
 
 *extension/build/Release - tf2/bot-control.ext.2.tf2.dll
 
+extension/.vs/
+extension/build/.ambuild2/

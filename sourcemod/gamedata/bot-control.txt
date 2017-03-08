@@ -55,6 +55,12 @@
 				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x50\x26\x00\x00"
 				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
 			}
+			"CollectPlayers<CTFBot>"	//"ChangeBotAttributes: Failed to find event [%s] in the pop file\n"
+			{
+				"library"	"server"
+				"windows"	"\x55\x89\xE5\x57\x56\x53\x83\xEC\x3C\x0F\xB6\x45\x10\x80\x7D\x14\x00\x8B\x7D\x08\x88\x45\xD7\x75\x2A\xC7\x47\x0C\x00\x00\x00\x00\xA1\x2A\x2A\x2A\x2A\x8B\x40\x14\x85\xC0\x7E\x2A"
+				"linux"		"@_Z14CollectPlayersI6CTFBotEiP10CUtlVectorIPT_10CUtlMemoryIS3_iEEibb"
+			}
 			"ParseDynamicAttributes"	//"WeaponRestrictions"
 			{
 				"library"	"server"

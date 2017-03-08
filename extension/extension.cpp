@@ -6,12 +6,11 @@ SMEXT_LINK(&g_BotControl);
 IGameConfig *g_pGameConf = NULL;
 
 CDetour *g_RealizeSpyDetour = NULL;
-CDetour *g_GetEventChangeAttributes = NULL;
+CDetour *g_CollectPlayers_CTFBot = NULL;
 CDetour *g_AddFollower = NULL;
 CDetour *g_SelectPatient = NULL;
 CDetour *g_AllowedToHealTarget = NULL;
 
-IForward *g_pForwardShouldSquadLeaderWaitForFormation = NULL;
 IForward *g_pForwardAllowedToHealTarget = NULL;
 IForward *g_pForwardSelectPatient = NULL;
 
@@ -21,6 +20,34 @@ class CTFBot;
 DETOUR_DECL_MEMBER1(RealizeSpy, int, CTFPlayer *, player)
 {
 	return 0;
+}
+
+DETOUR_DECL_STATIC4(int, CollectPlayers_CTFBot, CUtlVector<CTFBot *> *playerVector, int team, bool isAlive, bool shouldAppend)
+{
+	if (!shouldAppend) 
+	{
+		playerVector->RemoveAll();
+	}
+	
+	for (int i = 1; i <= playerhelpers->GetMaxClients(); ++i) 
+	{
+		IGamePlayer *pPlayer = playerhelpers->GetGamePlayer(index);
+		IPLayerInfo *pInfo   = pPlayer->GetPlayerInfo();
+
+		if (pPlayer == nullptr)                                   continue;
+		if (!pPlayer->IsPlayer())                                 continue;
+		if (!pPlayer->IsConnected())                              continue;
+		if (team != TEAM_ANY && pInfo->GetTeamIndex() != team)    continue;
+		if (isAlive && !pInfo->IsDead())                          continue;
+		
+		/* actually confirm that they're a Bot */
+		if(pPlayer->IsFakeClient())
+		{
+			playerVector->AddToTail(pPlayer);
+		}
+	}
+	
+	return playerVector->Count();
 }
 
 DETOUR_DECL_MEMBER1(GetEventChangeAttributes, int, char const*, attribute)
@@ -132,11 +159,11 @@ bool CBotControl::SDK_OnLoad(char *error, size_t maxlength, bool late)
 		g_pSM->LogMessage(myself, "CTFBot::RealizeSpy detour enabled.");
 	}
 	
-	g_GetEventChangeAttributes = DETOUR_CREATE_MEMBER(GetEventChangeAttributes, "CTFBot::GetEventChangeAttributes");
-	if(g_GetEventChangeAttributes != NULL)
+	g_CollectPlayers_CTFBot = DETOUR_CREATE_STATIC(CollectPlayers_CTFBot, "CollectPlayers<CTFBot>");
+	if(g_CollectPlayers_CTFBot != NULL)
 	{
-		g_GetEventChangeAttributes->EnableDetour();
-		g_pSM->LogMessage(myself, "CTFBot::GetEventChangeAttributes detour enabled.");
+		g_CollectPlayers_CTFBot->EnableDetour();
+		g_pSM->LogMessage(myself, "CollectPlayers<CTFBot> detour enabled.");
 	}
 	
 	g_AddFollower = DETOUR_CREATE_MEMBER(AddFollower, "CCaptureFlag::AddFollower");
@@ -172,12 +199,11 @@ void CBotControl::SDK_OnUnload()
 	gameconfs->CloseGameConfigFile(g_pGameConf);
 	
 	if(g_RealizeSpyDetour != NULL) g_RealizeSpyDetour->Destroy();
-	if(g_GetEventChangeAttributes != NULL) g_GetEventChangeAttributes->Destroy();
+	if(g_CollectPlayers_CTFBot != NULL) g_CollectPlayers_CTFBot->Destroy();
 	if(g_AddFollower != NULL) g_AddFollower->Destroy();
 	if(g_SelectPatient != NULL) g_SelectPatient->Destroy();
 	if(g_AllowedToHealTarget != NULL) g_AllowedToHealTarget->Destroy();
 	
-	if(g_pForwardShouldSquadLeaderWaitForFormation != NULL) forwards->ReleaseForward(g_pForwardShouldSquadLeaderWaitForFormation);
 	if(g_pForwardAllowedToHealTarget != NULL) forwards->ReleaseForward(g_pForwardAllowedToHealTarget);
 	if(g_pForwardSelectPatient != NULL) forwards->ReleaseForward(g_pForwardSelectPatient);
 }

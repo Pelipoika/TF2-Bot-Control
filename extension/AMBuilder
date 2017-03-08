@@ -19,6 +19,8 @@ project.sources += [os.path.join(Extension.sm_root, 'public', 'CDetour', 'detour
 
 project.sources += sourceFiles
 
+extension.compiler.postlink += ['legacy_stdio_definitions.lib']
+
 for sdk_name in Extension.sdks:
 	sdk = Extension.sdks[sdk_name]
 	
