@@ -50,22 +50,6 @@ DETOUR_DECL_STATIC4(int, CollectPlayers_CTFBot, CUtlVector<CTFBot *> *playerVect
 	return playerVector->Count();
 }
 
-DETOUR_DECL_MEMBER1(GetEventChangeAttributes, int, char const*, attribute)
-{
-	int index = gamehelpers->EntityToBCompatRef(reinterpret_cast<CBaseEntity *>(this));
-
-	if(index > 0 && index <= playerhelpers->GetMaxClients())
-	{
-		IGamePlayer *pPlayer = playerhelpers->GetGamePlayer(index);
-		if(pPlayer->IsConnected() && pPlayer->IsInGame() && !pPlayer->IsFakeClient())
-		{
-			return 0;
-		}
-	}
-	
-	return DETOUR_MEMBER_CALL(GetEventChangeAttributes)(attribute);
-}
-
 DETOUR_DECL_MEMBER1(AddFollower, int, CTFPlayer*, player)
 {
 	int index = gamehelpers->EntityToBCompatRef(reinterpret_cast<CBaseEntity *>(player));
