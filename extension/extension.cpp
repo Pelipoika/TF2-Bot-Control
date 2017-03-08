@@ -1,4 +1,7 @@
 #include "extension.h"
+#include "iplayerinfo.h"
+
+#define TEAM_ANY -2
 
 CBotControl g_BotControl;
 SMEXT_LINK(&g_BotControl);
