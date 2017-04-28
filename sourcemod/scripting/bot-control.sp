@@ -199,50 +199,50 @@ public void OnPluginStart()
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CBaseEntity::WorldSpaceCenter");
 	PrepSDKCall_SetReturnInfo(SDKType_Vector, SDKPass_ByRef);
-	if ((g_hSDKWorldSpaceCenter = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CBaseEntity::WorldSpaceCenter offset!");
+	if ((g_hSDKWorldSpaceCenter = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CBaseEntity::WorldSpaceCenter offset!");
 	
 	//This call is used to equip items on clients
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CTFPlayer::EquipWearable");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);	//tf_wearable
-	if ((g_hSdkEquipWearable = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::EquipWearable offset!"); 
+	if ((g_hSdkEquipWearable = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CTFBot::EquipWearable offset!"); 
 
 	//This call is used to set the deploy animation on the robots with the bomb
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::PlaySpecificSequence");
 	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);		//Sequence name
-	if ((g_hSDKPlaySpecificSequence = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFPlayer::PlaySpecificSequence signature!");
+	if ((g_hSDKPlaySpecificSequence = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CTFPlayer::PlaySpecificSequence signature!");
 
 	//This call is used to remove an objects owner
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::RemoveObject");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);	//CBaseObject
-	if ((g_hSDKRemoveObject = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed To create SDKCall for CTFPlayer::RemoveObject signature");
+	if ((g_hSDKRemoveObject = EndPrepSDKCall()) == null) SetFailState("Failed To create SDKCall for CTFPlayer::RemoveObject signature");
 
 	//This call is used to make sentry busters behave nicely
 	StartPrepSDKCall(SDKCall_Player); 
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBot::SetMission");
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);	//MissionType
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//StartSound
-	if ((g_hSDKSetMission = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::SetMission signature!"); 
+	if ((g_hSDKSetMission = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CTFBot::SetMission signature!"); 
 	
 	//This call is used to get a bots tag
 	StartPrepSDKCall(SDKCall_Player); 
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBot::HasTag");
 	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);	//Tag
 	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-	if ((g_hSDKHasTag = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::HasTag signature!"); 
+	if ((g_hSDKHasTag = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CTFBot::HasTag signature!"); 
 	
 	//This call will make a bot leave their squad
 	StartPrepSDKCall(SDKCall_Player); 
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBot::LeaveSquad");
-	if ((g_hSDKLeaveSquad = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBot::LeaveSquad signature!"); 
+	if ((g_hSDKLeaveSquad = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CTFBot::LeaveSquad signature!"); 
 	
 	//This call is used to retrieve the leader of a squad
 	StartPrepSDKCall(SDKCall_Raw);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBotSquad::GetLeader");
 	PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-	if ((g_hSDKGetSquadLeader = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFBotSquad::GetLeader signature!");
+	if ((g_hSDKGetSquadLeader = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CTFBotSquad::GetLeader signature!");
 
 	//This call will play a particle effect
 	StartPrepSDKCall(SDKCall_Static);
@@ -252,20 +252,20 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);	//pEntity
 	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);		//pszAttachmentName
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//bResetAllParticlesOnEntity 
-	if ((g_hSDKDispatchParticleEffect = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for DispatchParticleEffect signature!");
+	if ((g_hSDKDispatchParticleEffect = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for DispatchParticleEffect signature!");
 
 	//This call gets the maximum clip 1 of a weapon
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CTFWeaponBase::GetMaxClip1");
 	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);	//Clip
-	if ((g_hSDKGetMaxClip = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CTFWeaponBase::GetMaxClip1 offset!");
+	if ((g_hSDKGetMaxClip = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CTFWeaponBase::GetMaxClip1 offset!");
 	
 	//This call forces a player to pickup the intel
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Virtual, "CCaptureFlag::PickUp");
 	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);	//CCaptureFlag
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//silent pickup? or maybe it doesnt exist im not sure.
-	if ((g_hSDKPickup = EndPrepSDKCall()) == INVALID_HANDLE) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
+	if ((g_hSDKPickup = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 	
 	//Patch out *::IsPlayer() call in CCaptureFlag::FlagTouch
 	Address FlagTouch = GameConfGetAddress(hConf, "FlagTouch");
@@ -3095,7 +3095,7 @@ stock bool TranslateWeaponEntForClass(const char[] name, TFClassType class, char
 stock void Annotate(float flPos[3], int client, char[] strMsg, int iOffset = 0, float flLifeTime = 8.0, int entitytofollow = -1)
 {
 	Event event = CreateEvent("show_annotation");
-	if (event != INVALID_HANDLE)
+	if (event != null)
 	{
 		event.SetFloat("worldPosX", flPos[0]);
 		event.SetFloat("worldPosY", flPos[1]);
