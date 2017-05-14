@@ -35,11 +35,18 @@ DETOUR_DECL_STATIC4(CollectPlayers_CTFBot, int, CUtlVector<CTFBot *> *, playerVe
 	for (int i = 1; i <= playerhelpers->GetMaxClients(); ++i) 
 	{
 		IGamePlayer *pPlayer = playerhelpers->GetGamePlayer(i);
-		IPlayerInfo *pInfo   = pPlayer->GetPlayerInfo();
 
-		if (pPlayer == nullptr)                                   continue;
+		if (!pPlayer->IsConnected())
+			continue;
+
+		if (!pPlayer->IsInGame()) 
+			continue;
+
+		IPlayerInfo *pInfo = pPlayer->GetPlayerInfo();
+		if (!pInfo)
+			continue;
+
 		if (!pInfo->IsPlayer())                                   continue;
-		if (!pPlayer->IsConnected())                              continue;
 		if (team != TEAM_ANY && pInfo->GetTeamIndex() != team)    continue;
 		if (isAlive && !pInfo->IsDead())                          continue;
 		
