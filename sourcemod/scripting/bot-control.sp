@@ -1816,24 +1816,26 @@ public Action Listener_Build(int client, char[] command, int args)
 }
 
 //Detours
-
 public Action CTFBotMedicHeal_SelectPatient(int actor, int old_patient, int &desiredPatient)
 {
-	if(g_bIsControlled[desiredPatient])
-	{
-		Address BotSquad = TF2_GetBotSquad(actor);
-		if(BotSquad == Address_Null)
-			return Plugin_Continue;
+//	PrintToChatAll("actor %i old_patient %i desiredPatient %i", actor, old_patient, desiredPatient);
+	
+	Address MedicsBotsSquad = TF2_GetBotSquad(actor);
+	if(MedicsBotsSquad != Address_Null)
+	{	
+		int iLeader = SDKCall(g_hSDKGetSquadLeader, MedicsBotsSquad);
+		int iLeader2 = TF2_GetBotSquadLeader(actor);
 		
-		int iLeader = TF2_GetBotSquadLeader(desiredPatient);
-	//	PrintToServer("0x%x leader %i", BotSquad, iLeader);
-		
-	//	PrintToServer("actor %i old_patient %i desiredPatient %i", actor, old_patient, desiredPatient);
 		desiredPatient = iLeader;
+		
+		if(iLeader2 > 0)
+			desiredPatient = iLeader2;
+		
+	//	PrintToChatAll("iLeader = %i, iLeader2 = %i", iLeader, iLeader2);
 		
 		return Plugin_Changed;
 	}
-	
+
 	return Plugin_Continue;
 }
 
