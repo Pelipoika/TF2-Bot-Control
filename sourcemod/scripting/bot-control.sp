@@ -127,6 +127,7 @@ Handle g_hSDKRemoveObject;
 Handle g_hSDKHasTag;
 Handle g_hSDKWorldSpaceCenter;
 Handle g_hSDKLeaveSquad;
+Handle g_hSDKPostInventoryApplication;
 
 //DHooks
 Handle g_hIsValidTarget;
@@ -219,6 +220,11 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);	//CBaseObject
 	if ((g_hSDKRemoveObject = EndPrepSDKCall()) == null) SetFailState("Failed To create SDKCall for CTFPlayer::RemoveObject signature");
 
+	//This call is used to (hopefully) fix wearable issues.
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFPlayer::PostInventoryApplication");
+	if ((g_hSDKPostInventoryApplication = EndPrepSDKCall()) == null) SetFailState("Failed To create SDKCall for CTFPlayer::PostInventoryApplication signature");
+	
 	//This call is used to make sentry busters behave nicely
 	StartPrepSDKCall(SDKCall_Player); 
 	PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTFBot::SetMission");
@@ -268,7 +274,7 @@ public void OnPluginStart()
 	if ((g_hSDKPickup = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 	
 	//Patch out *::IsPlayer() call in CCaptureFlag::FlagTouch
-	Address FlagTouch = GameConfGetAddress(hConf, "FlagTouch");
+/*	Address FlagTouch = GameConfGetAddress(hConf, "FlagTouch");
 	if(FlagTouch == Address_Null)
 		SetFailState("Failed to find patch address of CCaptureFlag::FlagTouch");
 	
@@ -277,7 +283,7 @@ public void OnPluginStart()
 	for (int i = 0; i < 2; i++)
 	{
 		StoreToAddress(FlagTouch + view_as<Address>(i), 0x90, NumberType_Int8);
-	}
+	}*/
 	
 	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
 	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetBotAttribs         += GameConfGetOffset(hConf, "m_nBotAttrs");	
@@ -2558,6 +2564,9 @@ stock void TF2_MirrorItems(int iTarget, int client)
 	
 	Handle msg = StartMessageOne("PlayerPickupWeapon", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
 	if (msg != null) EndMessage();
+	
+	//Finally.
+	SDKCall(g_hSDKPostInventoryApplication, client);
 }
 
 stock void TF2_RemoveAllWearables(int client)
