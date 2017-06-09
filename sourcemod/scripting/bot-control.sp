@@ -148,6 +148,8 @@ int g_iCondSourceOffs = -1;
 int COND_SOURCE_OFFS = 8;
 int COND_SOURCE_SIZE = 20;
 
+int g_imSharedOffs;
+
 //Players bot & player data
 int g_iPlayersBot[MAXPLAYERS+1];
 int g_iPlayerAttributes[MAXPLAYERS+1];
@@ -319,6 +321,7 @@ public void OnPluginStart()
 	int offset = FindSendPropInfo("CTFPlayer", "m_Shared");
 	if (offset == -1) SetFailState("Cannot find m_Shared on CTFPlayer.");
 	g_iCondSourceOffs = offset + COND_SOURCE_OFFS;
+	g_imSharedOffs = offset;
 	
 	delete hConf;
 	
@@ -2000,21 +2003,72 @@ public Action Hook_TeleporterTransmit(int entity, int other)
 public Action Hook_SpyTransmit(int entity, int other)
 {
 	//Bots don't know where players are when they are disguised so neither should player bots.
-	if(other > 0 && other <= MaxClients && IsClientInGame(other) && entity != other && !IsFakeClient(entity))
+	if(other <= 0 || entity == other || other > MaxClients)
+		return Plugin_Continue;
+	
+	if(!IsClientInGame(other))
+		return Plugin_Continue;
+	
+	//Ignore bots
+	if(IsFakeClient(other))
+		return Plugin_Continue;
+	
+	//Ignore everything but spies
+	if(TF2_GetPlayerClass(entity) != TFClass_Spy)
+		return Plugin_Continue;
+	
+	//Always transmit blue spies
+	if(TF2_GetClientTeam(other) != TFTeam_Blue)
+		return Plugin_Continue;
+	
+	if(!ShouldSpyTransmit(entity))
 	{
-		if(TF2_GetPlayerClass(entity) == TFClass_Spy && TF2_GetClientTeam(other) == TFTeam_Blue)
-		{
-			if(TF2_IsPlayerInCondition(entity, TFCond_Disguised) || TF2_IsPlayerInCondition(entity, TFCond_Cloaked))
-			{
-				if(!TF2_IsPlayerInCondition(entity, TFCond_Jarated) && !TF2_IsPlayerInCondition(entity, TFCond_OnFire) && !TF2_IsPlayerInCondition(entity, TFCond_Milked))
-				{
-					return Plugin_Handled;	//Don't Transmit
-				}
-			}
-		}
+		return Plugin_Handled;	//Don't Transmit
 	}
 
 	return Plugin_Continue;	//Transmit
+}
+
+stock bool ShouldSpyTransmit(int client)
+{
+	// Players who are burning/jarated/bleeding, or who are cloaked and bump into something, are not ignored
+	if(TF2_IsPlayerInCondition(client, TFCond_CloakFlicker)
+	|| TF2_IsPlayerInCondition(client, TFCond_Bleeding)	
+	|| TF2_IsPlayerInCondition(client, TFCond_Jarated)
+	|| TF2_IsPlayerInCondition(client, TFCond_Milked)
+	|| TF2_IsPlayerInCondition(client, TFCond_OnFire)) {
+		return true;
+	}
+	
+	// Spies are only ignored when more than 75% cloaked
+	if(IsStealthed(client)) {
+		return (GetPercentInvisible(client) <= 0.75);
+	}
+	
+	// Spies who are not fully disguised are not ignored
+	if(!TF2_IsPlayerInCondition(client, TFCond_Disguised) 
+	|| TF2_IsPlayerInCondition(client, TFCond_Disguising)) {
+		return true;
+	}
+	
+	return false;
+}
+
+stock bool IsStealthed(int client)
+{
+	if(TF2_IsPlayerInCondition(client, TFCond_Cloaked))
+		return true;
+	
+	if(TF2_IsPlayerInCondition(client, TFCond_Stealthed))
+		return true;
+		
+	return TF2_IsPlayerInCondition(client, TFCond_StealthedUserBuffFade);
+}
+
+stock float GetPercentInvisible(int client)
+{
+	int offset = g_imSharedOffs + (80 * 4);
+	return GetEntDataFloat(client, offset);
 }
 
 stock void TF2_RestoreBot(int client)
