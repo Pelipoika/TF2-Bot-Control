@@ -181,7 +181,6 @@ float g_flBombDeployTime[MAXPLAYERS+1];
 float g_flNextBombUpgradeTime[MAXPLAYERS+1];
 
 //+map  workshop/601600702
-//team_control_point
 
 #define PLUGIN_VERSION "1.0"
 
@@ -1133,31 +1132,25 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				{
 					g_bReloadingBarrage[client] = true;
 					
-					SetHudTextParams(-1.0, -0.65, 0.75, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
+					SetHudTextParams(-1.0, -0.55, 0.75, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
 					ShowSyncHudText(client, g_hHudReload, "RELOADING BARRAGE!");
 				}
 				else if(g_bReloadingBarrage[client])
 				{
 					int iMaxClip1 = SDKCall(g_hSDKGetMaxClip, iActiveWeapon);
 					
-					if(iClip1 < iMaxClip1 && buttons & IN_ATTACK)
-					{
-						SetHudTextParams(-1.0, -0.65, 0.25, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
-						ShowSyncHudText(client, g_hHudReload, "CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON\n \
-															   CANNOT FIRE UNTIL FULLY RELOADED! LET GO OF LEFT MOUSE BUTTON");
-						
-						SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.1);
-					}
-					else
-					{
-						SetHudTextParams(-1.0, -0.65, 0.25, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
-						ShowSyncHudText(client, g_hHudReload, "RELOADING...");
-					}
+					SetHudTextParams(-1.0, -0.55, 0.25, 255, 150, 0, 255, 0, 0.0, 0.0, 0.0);
+					ShowSyncHudText(client, g_hHudReload, "RELOADING... (%i / %i)", iClip1, iMaxClip1);
+					
+					//Allows reloading even if the user is holding attack, although it looks weird on their screen.
+					buttons &= ~IN_ATTACK;
+					buttons &= ~IN_ATTACK2;
+					SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.25);
 					
 					if(iClip1 >= iMaxClip1)
 					{
-						SetHudTextParams(-1.0, -0.65, 1.75, 100, 255, 100, 255, 0, 0.0, 0.0, 0.0);
-						ShowSyncHudText(client, g_hHudReload,  "READY TO FIRE!");
+						SetHudTextParams(-1.0, -0.55, 1.75, 0, 255, 0, 255, 0, 0.0, 0.0, 0.0);
+						ShowSyncHudText(client, g_hHudReload,  "READY TO FIRE! (%i / %i)", iClip1, iMaxClip1);
 					
 						g_bReloadingBarrage[client] = false;
 					}
