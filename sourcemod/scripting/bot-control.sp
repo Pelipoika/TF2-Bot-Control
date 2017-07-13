@@ -825,26 +825,6 @@ public Action Event_SappedObject(Event event, const char[] name, bool dontBroadc
 	}
 }
 
-public Action OnFlagStartTouch(int iEntity, int iOther)
-{
-	Action touchAction;
-	touchAction = OnFlagTouch(iEntity,iOther);
-	if (touchAction != Plugin_Handled && iOther > 0 && iOther <= MaxClients && !IsFakeClient(iOther))
-	{
-		TF2_SetFakeClient(iOther, false);
-		RequestFrame(Frame_FlagPickup,GetClientUserId(iOther));
-	}
-	
-	return touchAction;
-}
-
-public void Frame_FlagPickup(int userid)
-{
-	int iClient = GetClientOfUserId(userid);
-	if (iClient > 0)
-		TF2_SetFakeClient(iClient, true);
-}
-
 public Action OnFlagTouch(int iEntity, int iOther)
 {
 	//If its not a client we don't care
@@ -1686,6 +1666,9 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 		return Plugin_Changed;
 	}
 	
+	g_bIsControlled[client] = false;
+	g_iController[client] = -1;
+	
 	return Plugin_Continue;
 }
 
@@ -2098,7 +2081,9 @@ stock void TF2_RestoreBot(int client)
 			int tMedigun = GetPlayerWeaponSlot(client, view_as<int>(TFWeaponSlot_Secondary));
 			int pMedigun = GetPlayerWeaponSlot(iBot, view_as<int>(TFWeaponSlot_Secondary));
 			
-			if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun))
+			if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun) 
+			&& EntityClassEquals(tMedigun, "tf_weapon_medigun")
+			&& EntityClassEquals(pMedigun, "tf_weapon_medigun"))
 			{
 				SetEntPropFloat(pMedigun, Prop_Send, "m_flChargeLevel",	GetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel"));	
 				SetEntPropEnt(pMedigun, Prop_Send, "m_hHealingTarget",	GetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget"));
@@ -2440,7 +2425,9 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 			int tMedigun = GetPlayerWeaponSlot(iBot, view_as<int>(TFWeaponSlot_Secondary));
 			int pMedigun = GetPlayerWeaponSlot(client, view_as<int>(TFWeaponSlot_Secondary));
 			
-			if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun))
+			if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun) 
+			&& EntityClassEquals(tMedigun, "tf_weapon_medigun")
+			&& EntityClassEquals(pMedigun, "tf_weapon_medigun"))
 			{
 				SetEntPropFloat(pMedigun, Prop_Send, "m_flChargeLevel",	GetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel"));	
 				SetEntPropEnt(pMedigun, Prop_Send, "m_hHealingTarget",	GetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget"));
@@ -2474,6 +2461,14 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 	}
 
 	return Plugin_Handled;
+}
+
+stock bool EntityClassEquals(int entity, const char[] class)
+{
+	char glass[64];
+	GetEntityClassname(entity, glass, sizeof(glass));
+	
+	return (StrEqual(glass, class, false));
 }
 
 stock void TF2_MirrorItems(int iTarget, int client)
