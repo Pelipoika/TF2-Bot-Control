@@ -274,24 +274,19 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//silent pickup? or maybe it doesnt exist im not sure.
 	if ((g_hSDKPickup = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 	
-	//Patch out *::IsPlayer() call in CCaptureFlag::FlagTouch
-/*	Address FlagTouch = GameConfGetAddress(hConf, "FlagTouch");
-	if(FlagTouch == Address_Null)
-		SetFailState("Failed to find patch address of CCaptureFlag::FlagTouch");
+	// Member: m_bViewingCYOAPDA (offset 9100)
 	
-	FlagTouch += view_as<Address>(46);	//Linux offset 44 and patch 6 bytes
+	//m_nWeaponRestrict 9580
+	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
+	//m_nBotAttrs 9584
+	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetBotAttribs         += GameConfGetOffset(hConf, "m_nBotAttrs");	
+	//m_flAutoJumpMin 9932
+	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetAutoJumpMin        += GameConfGetOffset(hConf, "m_flAutoJumpMin");
+	//m_flAutoJumpMax 9936
+	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetAutoJumpMax        += GameConfGetOffset(hConf, "m_flAutoJumpMax");
 	
-	for (int i = 0; i < 2; i++)
-	{
-		StoreToAddress(FlagTouch + view_as<Address>(i), 0x90, NumberType_Int8);
-	}*/
-	
-	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
-	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetBotAttribs         += GameConfGetOffset(hConf, "m_nBotAttrs");	
-	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMin        += GameConfGetOffset(hConf, "m_flAutoJumpMin");
-	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_iPlayerSkinOverride"))	g_iOffsetAutoJumpMax        += GameConfGetOffset(hConf, "m_flAutoJumpMax");
-	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))			g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
-	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))			g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
+	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))		g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
+	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))		g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
 	
 	g_iOffsetSquad = g_iOffsetWeaponRestrictions + GameConfGetOffset(hConf, "m_Squad");
 	
@@ -2604,7 +2599,11 @@ stock void TF2_MirrorItems(int iTarget, int client)
 		}
 	}
 	
-	Handle msg = StartMessageOne("PlayerPickupWeapon", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
+	Handle msg = StartMessageOne("PlayerLoadoutUpdated", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
+	BfWriteByte(msg, client);
+	if (msg != null) EndMessage();
+	
+	msg = StartMessageOne("PlayerPickupWeapon", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
 	if (msg != null) EndMessage();
 	
 	//Finally.
