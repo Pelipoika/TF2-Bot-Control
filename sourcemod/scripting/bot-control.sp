@@ -288,6 +288,8 @@ public void OnPluginStart()
 	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))		g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
 	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))		g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
 	
+	PrintToServer("m_bViewingCYOAPDA = %i", FindSendPropInfo("CTFPlayer", "m_bViewingCYOAPDA"));
+	
 	g_iOffsetSquad = g_iOffsetWeaponRestrictions + GameConfGetOffset(hConf, "m_Squad");
 	
 	int iOffset = GameConfGetOffset(hConf, "CTFPlayer::ShouldGib");

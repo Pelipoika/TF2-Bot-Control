@@ -154,17 +154,17 @@
 			"m_nWeaponRestrict"	//m_nBotAttrs - 1*4
 			{
 				"windows"	"480"
-			//	"linux"		"368"
+			//	"linux"		"updateme"
 			}
 			"m_Squad" //m_nWeaponRestrict + 28
 			{
 				"windows"	"28"
-			//	"linux"		"28"
+			//	"linux"		"updateme"
 			}
 			"m_nBotAttrs"		//https://github.com/sigsegv-mvm/mvm-reversed/blob/508dc9459f54033a59207dab089c18285837b757/server/tf/bot/behavior/tf_bot_scenario_monitor.cpp#L135 "Cannot teleport to hint with out Attributes TeleportToHint"
 			{
 				"windows"	"484"
-			//	"linux"		"372"
+			//	"linux"		"updateme"
 			}
 			"m_flAutoJumpMin"	//CTFBot::ShouldAutoJump
 			{
@@ -179,12 +179,12 @@
 			"m_bMissionBot"
 			{
 				"windows"	"3"
-			//	"linux"		"3"
+				"linux"		"3"
 			}
 			"m_bSupportLimited"
 			{
 				"windows"	"2"
-			//	"linux"		"2"
+				"linux"		"2"
 			}
 		}
 	}
