@@ -3024,7 +3024,7 @@ public void GiveItem(int client, int DefIndex, char[] ItemClass, int iAttribCoun
 	{
 		for (int i = 0; i < iAttribCount; i++)
 		{
-			if(i < 15)
+			if(i < 20)
 			{
 				TF2Items_SetAttribute(TF2Item, i, iAttribList[i], flAttribValues[i]);
 			}
