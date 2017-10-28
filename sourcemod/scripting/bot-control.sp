@@ -1127,11 +1127,16 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					if(iClip1 >= iMaxClip1)
 					{
 						SetHudTextParams(-1.0, -0.55, 1.75, 0, 255, 0, 255, 0, 0.0, 0.0, 0.0);
-						ShowSyncHudText(client, g_hHudReload,  "READY TO FIRE! (%i / %i)", iClip1, iMaxClip1);
+						ShowSyncHudText(client, g_hHudReload, "READY TO FIRE! (%i / %i)", iClip1, iMaxClip1);
 					
 						g_bReloadingBarrage[client] = false;
 					}
 				}
+			}
+			
+			if(g_iPlayerAttributes[client] & view_as<int>(ALWAYSFIREWEAPON) && !g_bReloadingBarrage[client])
+			{
+				buttons |= IN_ATTACK;
 			}
 		}
 	
@@ -1315,7 +1320,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	else
 	{
 		if(g_bRandomlyChooseBot[client] && TF2_GetClientTeam(client) == TFTeam_Spectator && !g_bControllingBot[client] && g_bCanPlayAsBot[client] && g_flCooldownEndTime[client] <= GetGameTime())
-		{
+		{		
 			int iPlayerarray[MAXPLAYERS+1];
 			int iPlayercount;
 			
@@ -1676,7 +1681,7 @@ public Action Event_PlayerTeam(Event event, const char[] name, bool dontBroadcas
 	TFTeam iOldTeam = view_as<TFTeam>(event.GetInt("oldteam"));
 	
 	if(iTeam == TFTeam_Spectator)
-	{
+	{	
 		if(g_bControllingBot[client])
 		{
 			TF2_RestoreBot(client);
@@ -1688,11 +1693,16 @@ public Action Event_PlayerTeam(Event event, const char[] name, bool dontBroadcas
 	}
 	
 	//Don't show joining spectator from blue team or joining blue team
-	if(!IsFakeClient(client) && iOldTeam == TFTeam_Blue || iTeam == TFTeam_Blue)
+	if(!IsFakeClient(client))
 	{
-		event.SetInt("silent", 1);
-		
-		return Plugin_Changed;
+		SetEntProp(client, Prop_Data, "m_bPredictWeapons", true);
+	
+		if(iOldTeam == TFTeam_Blue || iTeam == TFTeam_Blue)
+		{
+			event.SetInt("silent", 1);
+			
+			return Plugin_Changed;
+		}
 	}
 	
 	return Plugin_Continue;
@@ -2363,12 +2373,14 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	g_flAutoJumpMin[client]		= flJumpMin;
 	g_flAutoJumpMax[client]		= flJumpMax;
 	g_iPlayerAttributes[client]	= iBotAttrs;
-
-	if(iBotAttrs & view_as<int>(IGNOREFLAG))	TF2Attrib_SetByName(client, "cannot pick up intelligence", 1.0);
-	if(iBotAttrs & view_as<int>(ALWAYSCRIT))	TF2_AddCondition(client, TFCond_CritOnFlagCapture);
-	if(iBotAttrs & view_as<int>(BULLETIMMUNE))	TF2_AddCondition(client, TFCond_BulletImmune);
-	if(iBotAttrs & view_as<int>(BLASTIMMUNE))	TF2_AddCondition(client, TFCond_BlastImmune);
-	if(iBotAttrs & view_as<int>(FIREIMMUNE))	TF2_AddCondition(client, TFCond_FireImmune);
+	
+	//Fixes client visuals.
+	if(iBotAttrs & view_as<int>(ALWAYSFIREWEAPON))	SetEntProp(client, Prop_Data, "m_bPredictWeapons", false);
+	if(iBotAttrs & view_as<int>(IGNOREFLAG))		TF2Attrib_SetByName(client, "cannot pick up intelligence", 1.0);
+	if(iBotAttrs & view_as<int>(ALWAYSCRIT))		TF2_AddCondition(client, TFCond_CritOnFlagCapture);
+	if(iBotAttrs & view_as<int>(BULLETIMMUNE))		TF2_AddCondition(client, TFCond_BulletImmune);
+	if(iBotAttrs & view_as<int>(BLASTIMMUNE))		TF2_AddCondition(client, TFCond_BlastImmune);
+	if(iBotAttrs & view_as<int>(FIREIMMUNE))		TF2_AddCondition(client, TFCond_FireImmune);
 	
 //	SetEntData(client, g_iOffsetBotAttribs, iBotAttrs, true);	//It does stuff, trust me.
 	SetEntData(client, g_iOffsetMissionBot, 	1, _, true);	//Makes player death not decrement wave bot count
