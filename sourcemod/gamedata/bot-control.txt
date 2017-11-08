@@ -22,19 +22,19 @@
 			"CTFBot::LeaveSquad"	//"Squad leader is dead"
 			{
 				"library"	"server"
-				"windows"	"\x56\x8B\xF1\x8B\x8E\x88\x25\x00\x00"
+				"windows"	"\x56\x8B\xF1\x8B\x8E\xC0\x25\x00\x00"
 				"linux"		"@_ZN6CTFBot10LeaveSquadEv"
 			}
 			"CTFPlayer::PlaySpecificSequence"	//"primary_deploybomb"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\x75\x08\x57\x56\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xD8\x83\xFB\xFF\x74\x2A\x8B\x35\x2A\x2A\x2A\x2A\x8B\xCE\x8B\x16\xFF\x52\x64\x8B\x8F\x58\x20\x00\x00\x53\x6A\x13"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\x75\x08\x57\x56\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xD8\x83\xFB\xFF\x74\x2A\x8B\x35\x2A\x2A\x2A\x2A\x8B\xCE\x8B\x16\xFF\x52\x64\x8B\x8F\x90\x20\x00\x00\x53\x6A\x13"
 				"linux"		"@_ZN9CTFPlayer20PlaySpecificSequenceEPKc"
 			}
 			"CTFPlayer::RemoveObject" //"mvm_mission_update"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x8B\xD1\x56\x8B\xB2\x40\x21\x00\x00"
+				"windows"	"\x55\x8B\xEC\x8B\xD1\x56\x8B\xB2\x78\x21\x00\x00"
 				"linux"		"@_ZN9CTFPlayer12RemoveObjectEP11CBaseObject"
 			}
 			"CTFBot::SetMission"	//"mvm_sentrybuster_killed"
@@ -52,7 +52,7 @@
 			"CTFBot::GetEventChangeAttributes"	//"ChangeBotAttributes: Failed to find eve"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\xF0\x26\x00\x00"
+				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x28\x27\x00\x00"
 				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
 			}
 			"CCaptureFlag::AddFollower"	//"models/bots/demo/bot_sentry_buster.mdl"
@@ -70,7 +70,7 @@
 			"CTFBot::HasTag"	//"bot_gatebot"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x56\x33\xF6\x57\x39\xB3\x34\x26\x00\x00"
+				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x56\x33\xF6\x57\x39\xB3\x6C\x26\x00\x00"
 				"linux"		"@_ZN6CTFBot6HasTagEPKc"
 			}
 			"DispatchParticleEffect"	//"MODEL '%S' DOESN'T HAVE ATTACHMENT '%S' TO ATTACH PARTICLE SYSTEM '%S' TO.\N"
@@ -94,7 +94,7 @@
 			"CTFPlayer::PostInventoryApplication"	//"post_inventory_application"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x51\x53\x8B\xD9\x56\x57\x8D\x8B\x68\x19\x00\x00"
+				"windows"	"\x55\x8B\xEC\x51\x53\x8B\xD9\x56\x57\x8D\x8B\xA0\x19\x00\x00"
 				"linux"		"@_ZN9CTFPlayer24PostInventoryApplicationEv"
 			}
 		}
