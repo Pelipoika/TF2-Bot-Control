@@ -353,6 +353,9 @@ public void OnPluginStart()
 	HookEvent("mvm_wave_complete",    Event_ResetBots);
 	HookEvent("player_sapped_object", Event_SappedObject);
 	
+	//For idiots like AREK
+	RegConsoleCmd("sm_joinred",    Command_JoinRed);
+	
 	RegConsoleCmd("sm_joinblue",   Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_joinblu",    Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_joinbrobot", Command_ToggleRandomPicker);
@@ -370,6 +373,16 @@ public void TF2_OnWaitingForPlayersEnd()
 {
 	if(!TF2_IsMvM())
 		SetFailState("[Bot Control] Disabling for non mvm map");
+}
+
+public Action Command_JoinRed(int client, int args)
+{
+	if(client > 0 && client <= MaxClients && IsClientInGame(client))
+	{
+		FakeClientCommand(client, "autoteam");
+	}
+	
+	return Plugin_Handled;
 }
 
 public Action Command_ToggleRandomPicker(int client, int args)
