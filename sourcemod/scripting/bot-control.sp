@@ -2063,7 +2063,9 @@ stock bool IsStealthed(int client)
 
 stock float GetPercentInvisible(int client)
 {
-	int offset = g_imSharedOffs + (80 * 4);
+	//m_shared = 6560
+
+	int offset = g_imSharedOffs + (81 * 4);
 	return GetEntDataFloat(client, offset);
 }
 
