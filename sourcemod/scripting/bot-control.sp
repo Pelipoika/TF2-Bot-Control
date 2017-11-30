@@ -2032,7 +2032,8 @@ stock bool ShouldSpyTransmit(int client)
 	|| TF2_IsPlayerInCondition(client, TFCond_Bleeding)	
 	|| TF2_IsPlayerInCondition(client, TFCond_Jarated)
 	|| TF2_IsPlayerInCondition(client, TFCond_Milked)
-	|| TF2_IsPlayerInCondition(client, TFCond_OnFire)) {
+	|| TF2_IsPlayerInCondition(client, TFCond_OnFire)
+	|| TF2_IsPlayerInCondition(client, TFCond_Gas)) {
 		return true;
 	}
 	
