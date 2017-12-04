@@ -2424,64 +2424,73 @@ public Action Timer_ReplaceWeapons(Handle hTimer, any iUserId)
 {
 	//Check to see if the player is valid and is still controlling bot.
 	int client = GetClientOfUserId(iUserId);
-	if(client > 0 && client <= MaxClients && IsClientInGame(client) && g_bControllingBot[client])
+	if(client <= 0 || client > MaxClients || !IsClientInGame(client))
+		return Plugin_Handled;
+	
+	if(!g_bControllingBot[client])
+		return Plugin_Handled;
+		
+	if(!IsPlayerAlive(client))
+		return Plugin_Handled;
+	
+	int iBot = GetClientOfUserId(g_iPlayersBot[client]);
+	if(iBot <= 0)
+		return Plugin_Handled;
+		
+	if(!IsPlayerAlive(iBot))
+		return Plugin_Handled;
+	
+	TF2_MirrorItems(iBot, client);
+	
+	if(TF2_HasBomb(iBot))
 	{
-		int iBot = GetClientOfUserId(g_iPlayersBot[client]);
-		if(iBot <= 0)
-			return Plugin_Handled;
+		int iBomb = TF2_DropBomb(iBot);
+		if(IsValidEntity(iBomb))
+			TF2_PickupBomb(client, iBomb);
 		
-		TF2_MirrorItems(iBot, client);
+		//Copy bomb carrier upgrade level
+		int iResource = FindEntityByClassname(-1, "tf_objective_resource");
+		g_iFlagCarrierUpgradeLevel[client] = GetEntProp(iResource, Prop_Send, "m_nFlagCarrierUpgradeLevel");
+		g_flNextBombUpgradeTime[client]    = GetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime");	
+	}
+	
+	//Copy medigun data
+	if(TF2_GetPlayerClass(iBot) == TFClass_Medic)
+	{
+		int tMedigun = GetPlayerWeaponSlot(iBot, view_as<int>(TFWeaponSlot_Secondary));
+		int pMedigun = GetPlayerWeaponSlot(client, view_as<int>(TFWeaponSlot_Secondary));
 		
-		if(TF2_HasBomb(iBot))
+		if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun) 
+		&& EntityClassEquals(tMedigun, "tf_weapon_medigun")
+		&& EntityClassEquals(pMedigun, "tf_weapon_medigun"))
 		{
-			int iBomb = TF2_DropBomb(iBot);
-			if(IsValidEntity(iBomb))
-				TF2_PickupBomb(client, iBomb);
+			SetEntPropFloat(pMedigun, Prop_Send, "m_flChargeLevel",	GetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel"));	
+			SetEntPropEnt(pMedigun, Prop_Send, "m_hHealingTarget",	GetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget"));
+			SetEntProp(pMedigun, Prop_Send, "m_nChargeResistType",	GetEntProp(tMedigun, Prop_Send, "m_nChargeResistType"));	
+			SetEntProp(pMedigun, Prop_Send, "m_bAttacking",			GetEntProp(tMedigun, Prop_Send, "m_bAttacking"));	
+			SetEntProp(pMedigun, Prop_Send, "m_bHealing",			GetEntProp(tMedigun, Prop_Send, "m_bHealing"));	
+			SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
 			
-			//Copy bomb carrier upgrade level
-			int iResource = FindEntityByClassname(-1, "tf_objective_resource");
-			g_iFlagCarrierUpgradeLevel[client] = GetEntProp(iResource, Prop_Send, "m_nFlagCarrierUpgradeLevel");
-			g_flNextBombUpgradeTime[client]    = GetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime");	
+			//Because
+			SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0);   //Hide the medigun effect
+			SetEntPropEnt(tMedigun,   Prop_Send, "m_hHealingTarget", -1);   //Remove the medigun beam
+			SetEntProp(tMedigun,      Prop_Send, "m_bHealing", 0);	
 		}
+	}
+	
+	//Disguise after we have received our disguise items.
+	if(TF2_GetPlayerClass(iBot) == TFClass_Spy)
+	{
+		int iDisguiseClass	= GetEntProp(iBot, Prop_Send, "m_nDisguiseClass");
+		int iDisguiseTarget = GetEntProp(iBot, Prop_Send, "m_iDisguiseTargetIndex");
 		
-		//Copy medigun data
-		if(TF2_GetPlayerClass(iBot) == TFClass_Medic)
+		if(iDisguiseTarget > 0 && iDisguiseTarget <= MaxClients && IsClientInGame(iDisguiseTarget) && iDisguiseClass > 0)
 		{
-			int tMedigun = GetPlayerWeaponSlot(iBot, view_as<int>(TFWeaponSlot_Secondary));
-			int pMedigun = GetPlayerWeaponSlot(client, view_as<int>(TFWeaponSlot_Secondary));
-			
-			if(IsValidEntity(tMedigun) && IsValidEntity(pMedigun) 
-			&& EntityClassEquals(tMedigun, "tf_weapon_medigun")
-			&& EntityClassEquals(pMedigun, "tf_weapon_medigun"))
-			{
-				SetEntPropFloat(pMedigun, Prop_Send, "m_flChargeLevel",	GetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel"));	
-				SetEntPropEnt(pMedigun, Prop_Send, "m_hHealingTarget",	GetEntPropEnt(tMedigun, Prop_Send, "m_hHealingTarget"));
-				SetEntProp(pMedigun, Prop_Send, "m_nChargeResistType",	GetEntProp(tMedigun, Prop_Send, "m_nChargeResistType"));	
-				SetEntProp(pMedigun, Prop_Send, "m_bAttacking",			GetEntProp(tMedigun, Prop_Send, "m_bAttacking"));	
-				SetEntProp(pMedigun, Prop_Send, "m_bHealing",			GetEntProp(tMedigun, Prop_Send, "m_bHealing"));	
-				SetEntProp(pMedigun, Prop_Send, "m_bChargeRelease",		GetEntProp(tMedigun, Prop_Send, "m_bChargeRelease"));	
-				
-				//Because
-				SetEntPropFloat(tMedigun, Prop_Send, "m_flChargeLevel",	0.0);   //Hide the medigun effect
-				SetEntPropEnt(tMedigun,   Prop_Send, "m_hHealingTarget", -1);   //Remove the medigun beam
-				SetEntProp(tMedigun,      Prop_Send, "m_bHealing", 0);	
-			}
+			TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass), iDisguiseTarget);
 		}
-		
-		//Disguise after we have received our disguise items.
-		if(TF2_GetPlayerClass(iBot) == TFClass_Spy)
+		else if(iDisguiseClass > 0)
 		{
-			int iDisguiseClass	= GetEntProp(iBot, Prop_Send, "m_nDisguiseClass");
-			int iDisguiseTarget = GetEntProp(iBot, Prop_Send, "m_iDisguiseTargetIndex");
-			
-			if(iDisguiseTarget > 0 && iDisguiseTarget <= MaxClients && IsClientInGame(iDisguiseTarget) && iDisguiseClass > 0)
-			{
-				TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass), iDisguiseTarget);
-			}
-			else if(iDisguiseClass > 0)
-			{
-				TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass));
-			}
+			TF2_DisguisePlayer(client, TFTeam_Red, view_as<TFClassType>(iDisguiseClass));
 		}
 	}
 
