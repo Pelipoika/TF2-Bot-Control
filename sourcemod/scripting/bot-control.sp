@@ -387,35 +387,48 @@ public Action Command_JoinRed(int client, int args)
 
 public Action Command_ToggleRandomPicker(int client, int args)
 {
-	if(client > 0 && client <= MaxClients && IsClientInGame(client))
+	if(client <= 0 || client > MaxClients)
+		return Plugin_Handled;
+		
+	if(!IsClientInGame(client))
+		return Plugin_Handled;
+		
+	//Count player bots.
+	int iRobotCount = 0;
+	for(int i = 1; i <= MaxClients; i++)
 	{
-		int iRobotCount = 0;
+		if(!IsClientInGame(i))
+			continue;
+			
+		if(IsFakeClient(i))
+			continue;
+		
+		if(TF2_GetClientTeam(i) == TFTeam_Blue 
+		|| TF2_GetClientTeam(i) == TFTeam_Spectator)
+			iRobotCount++;
+	}
 	
-		for(int i = 1; i <= MaxClients; i++)
-			if(IsClientInGame(i) && !IsFakeClient(i))
-				if(TF2_GetClientTeam(i) == TFTeam_Blue || TF2_GetClientTeam(i) == TFTeam_Spectator)
-					iRobotCount++;
-		
-		if(!g_bRandomlyChooseBot[client])
-		{			
-			CPrintToChat(client, "{arcana}We will now automatically choose a bot for you when one is available! Type !randombot again to stop playing as random bots");
-			g_bRandomlyChooseBot[client] = true;
-		}
-		else
-		{
-			CPrintToChat(client, "{arcana}Random bot choosing is now {red}OFF");
-			g_bRandomlyChooseBot[client] = false;
-		}
-		
-		if(iRobotCount < 4 || CheckCommandAccess(client, "sm_admin", ADMFLAG_ROOT, true))
-		{
-			if(TF2_GetClientTeam(client) != TFTeam_Spectator && TF2_GetClientTeam(client) != TFTeam_Blue)
-			{
-				TF2_ChangeClientTeam(client, TFTeam_Spectator);
-			}
-		}
-		else
-			CPrintToChat(client, "{red}Robots are full.");
+	if(!g_bRandomlyChooseBot[client])
+	{			
+		CPrintToChat(client, "{arcana}We will now automatically choose a bot for you when one is available! Type !randombot again to stop playing as random bots");
+		g_bRandomlyChooseBot[client] = true;
+	}
+	else
+	{
+		CPrintToChat(client, "{arcana}Random bot choosing is now {red}OFF");
+		g_bRandomlyChooseBot[client] = false;
+	}
+	
+	if(iRobotCount >= 4 && !CheckCommandAccess(client, "sm_admin", ADMFLAG_ROOT, true))
+	{
+		CPrintToChat(client, "{red}Robots are full.");
+		return Plugin_Handled;
+	}
+	
+	if(TF2_GetClientTeam(client) != TFTeam_Spectator 
+	&& TF2_GetClientTeam(client) != TFTeam_Blue)
+	{
+		TF2_ChangeClientTeam(client, TFTeam_Spectator);
 	}
 	
 	return Plugin_Handled;
@@ -549,68 +562,72 @@ public int MenuAttributeHandler(Menu menu, MenuAction action, int param1, int pa
 
 public MRESReturn CFilterTFBotHasTag(int iFilter, Handle hReturn, Handle hParams)
 {
-	if(GameRules_GetProp("m_bPlayingMannVsMachine") && !DHookIsNullParam(hParams, 2))
-	{
-		int iEntity = DHookGetParam(hParams, 1);
-		int iOther  = DHookGetParam(hParams, 2);
-		
-		if(iOther <= 0 || iOther > MaxClients)
-			return MRES_Ignored;
-		
-		//Don't care about real bots
-		if(IsFakeClient(iOther))
-			return MRES_Ignored;
-		
-		//Don't care about players not controlling a bot
-		if(!g_bControllingBot[iOther])
-			return MRES_Ignored;
-		
-		int iBot = GetClientOfUserId(g_iPlayersBot[iOther]);
-		if(iBot <= 0)
-			return MRES_Ignored;
-		
-		char strTags[PLATFORM_MAX_PATH]; 
-		GetEntPropString(iFilter, Prop_Data, "m_iszTags", strTags, PLATFORM_MAX_PATH);
-		bool bNegated = !!GetEntProp(iFilter, Prop_Data, "m_bNegated");
-	//	bool bRequireAllTags = !!GetEntProp(iFilter, Prop_Data, "m_bRequireAllTags");	//Don't know of a map that uses this.
-		
-		bool bResult = TF2_HasTag(iBot, strTags);
-		if(bNegated)
-			bResult = !bResult;
-		
-		char iEntityClassname[64];
-		GetEntityClassname(iEntity, iEntityClassname, sizeof(iEntityClassname));
-		
-		//We don't care about you
-		if(StrEqual(iEntityClassname, "func_nav_prerequisite"))
-			return MRES_Ignored;
-		
-		//These work the opposite way
-		if(StrEqual(iEntityClassname, "trigger_add_tf_player_condition"))
-			bResult = !bResult;
-		
-	//	PrintToServer("Filter %i on entity %s asks: HasTag %N %s ? %s", iFilter, iEntityClassname, iBot, strTags, bResult ? "Yes" : "No");
-		
-		DHookSetReturn(hReturn, bResult);
-		return MRES_Supercede;
-	}
+	if(!GameRules_GetProp("m_bPlayingMannVsMachine") || DHookIsNullParam(hParams, 2))
+		return MRES_Ignored;
 
-	return MRES_Ignored;
+	int iEntity = DHookGetParam(hParams, 1);
+	int iOther  = DHookGetParam(hParams, 2);
+	
+	if(iOther <= 0 || iOther > MaxClients)
+		return MRES_Ignored;
+	
+	//Don't care about real bots
+	if(IsFakeClient(iOther))
+		return MRES_Ignored;
+	
+	//Don't care about players not controlling a bot
+	if(!g_bControllingBot[iOther])
+		return MRES_Ignored;
+	
+	int iBot = GetClientOfUserId(g_iPlayersBot[iOther]);
+	if(iBot <= 0)
+		return MRES_Ignored;
+	
+	char strTags[PLATFORM_MAX_PATH]; 
+	GetEntPropString(iFilter, Prop_Data, "m_iszTags", strTags, PLATFORM_MAX_PATH);
+	bool bNegated = !!GetEntProp(iFilter, Prop_Data, "m_bNegated");
+//	bool bRequireAllTags = !!GetEntProp(iFilter, Prop_Data, "m_bRequireAllTags");	//Don't know of a map that uses this.
+	
+	bool bResult = TF2_HasTag(iBot, strTags);
+	if(bNegated)
+		bResult = !bResult;
+	
+	char iEntityClassname[64];
+	GetEntityClassname(iEntity, iEntityClassname, sizeof(iEntityClassname));
+	
+	//We don't care about you
+	if(StrEqual(iEntityClassname, "func_nav_prerequisite"))
+		return MRES_Ignored;
+	
+	//These work the opposite way
+	if(StrEqual(iEntityClassname, "trigger_add_tf_player_condition"))
+		bResult = !bResult;
+	
+//	PrintToServer("Filter %i on entity %s asks: HasTag %N %s ? %s", iFilter, iEntityClassname, iBot, strTags, bResult ? "Yes" : "No");
+	
+	DHookSetReturn(hReturn, bResult);
+	return MRES_Supercede;
 }
 
 public MRESReturn IsValidTarget(int pThis, Handle hReturn, Handle hParams)
 {
-	if(GameRules_GetProp("m_bPlayingMannVsMachine") && !DHookIsNullParam(hParams, 1))
+	if(!GameRules_GetProp("m_bPlayingMannVsMachine") || DHookIsNullParam(hParams, 1))
+		return MRES_Ignored;
+	
+	int iTarget = DHookGetParam(hParams, 1);
+	if(iTarget <= 0 || iTarget > MaxClients)
+		return MRES_Ignored;
+	
+	if(!IsClientInGame(pThis) || !IsClientInGame(iTarget))
+		return MRES_Ignored;
+		
+	if(!IsPlayerAlive(iTarget) || !IsFakeClient(pThis))
+		return MRES_Ignored;
+		
+	if(g_bIsControlled[iTarget])
 	{
-		int iTarget = DHookGetParam(hParams, 1);
-		if(iTarget > 0 && iTarget <= MaxClients && IsClientInGame(pThis) && IsClientInGame(iTarget) && IsPlayerAlive(iTarget) && !IsFakeClient(pThis))
-		{
-			if(g_bIsControlled[iTarget])
-			{
-				DHookSetReturn(hReturn, false);	
-				return MRES_Supercede;
-			}
-		}
+		DHookSetReturn(hReturn, false);	
+		return MRES_Supercede;
 	}
 
 	return MRES_Ignored;
@@ -665,11 +682,11 @@ public MRESReturn Hook_EntityShouldTransmit(int pThis, Handle hReturn, Handle hP
 
 public void OnClientDisconnect(int client)
 {
-	if (client > 0 && client <= MaxClients && IsClientInGame(client))
-	{
-		TF2_RestoreBot(client);
-		g_bRandomlyChooseBot[client] = false;
-	}
+	if(client <= 0 || client > MaxClients || !IsClientInGame(client))
+		return;
+
+	TF2_RestoreBot(client);
+	g_bRandomlyChooseBot[client] = false;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -998,15 +1015,12 @@ public Action OnSpawnEndTouch(int iEntity, int iOther)
 		{
 			switch(g_iFlagCarrierUpgradeLevel[iOther])
 			{
-				case 0:
-					g_flNextBombUpgradeTime[iOther] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_1st_upgrade")); 
-				case 1: 
-					g_flNextBombUpgradeTime[iOther] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_2nd_upgrade")); 
-				case 2: 
-					g_flNextBombUpgradeTime[iOther] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade"));
+				case 0: g_flNextBombUpgradeTime[iOther] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_1st_upgrade")); 
+				case 1: g_flNextBombUpgradeTime[iOther] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_2nd_upgrade")); 
+				case 2: g_flNextBombUpgradeTime[iOther] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade"));
 			}
 			
-			UpdateBombHud(GetClientUserId(iOther));//The bomb hud needs to be updated BEFORE we add again the TFCond_UberchargedHidden condition
+			UpdateBombHud(GetClientUserId(iOther)); //The bomb hud needs to be updated BEFORE we add again the TFCond_UberchargedHidden condition
 		}
 		
 		TF2_AddCondition(iOther, TFCond_UberchargedHidden, 1.0);
@@ -1206,20 +1220,30 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
 				}
 				
+				//Sentry Buster: Check for engineers carrying buildings nearby.
 				for(int i = 1; i <= MaxClients; i++)
 				{
-					if(IsClientInGame(i) && GetClientTeam(i) != GetClientTeam(client) && i != client && GetEntProp(i, Prop_Send, "m_bCarryingObject"))
+					if(i == client)
+						continue;
+				
+					if(!IsClientInGame(i))
+						continue;
+						
+					if(GetClientTeam(i) == GetClientTeam(client))
+						continue;
+				
+					if(!GetEntProp(i, Prop_Send, "m_bCarryingObject"))
+						continue;
+						
+					float iPos[3];
+					GetClientAbsOrigin(i, iPos);
+					
+					float flDistance = GetVectorDistance(flPos, iPos);
+					
+					if(flDistance <= 100.0)
 					{
-						float iPos[3];
-						GetClientAbsOrigin(i, iPos);
-						
-						float flDistance = GetVectorDistance(flPos, iPos);
-						
-						if(flDistance <= 100.0)
-						{
-							TF2_RestoreBot(client);
-							TF2_ChangeClientTeam(client, TFTeam_Spectator);
-						}
+						TF2_RestoreBot(client);
+						TF2_ChangeClientTeam(client, TFTeam_Spectator);
 					}
 				}
 			}
@@ -1268,17 +1292,26 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						
 						for(int i = 1; i <= MaxClients; i++)
 						{
-							if(IsClientInGame(i) && GetClientTeam(i) == GetClientTeam(client) && i != client && g_iFlagCarrierUpgradeLevel[client] >= 1)
+							if(i == client)
+								continue;
+						
+							if(!IsClientInGame(i))
+								continue;
+								
+							if(GetClientTeam(i) != GetClientTeam(client))
+								continue;
+							
+							if(g_iFlagCarrierUpgradeLevel[client] < 1)
+								continue;
+								
+							float iPos[3];
+							GetClientAbsOrigin(i, iPos);
+							
+							float flDistance = GetVectorDistance(pPos, iPos);
+							
+							if(flDistance <= 450.0)
 							{
-								float iPos[3];
-								GetClientAbsOrigin(i, iPos);
-								
-								float flDistance = GetVectorDistance(pPos, iPos);
-								
-								if(flDistance <= 450.0)
-								{
-									TF2_AddCondition(i, TFCond_DefenseBuffNoCritBlock, 0.125);
-								}
+								TF2_AddCondition(i, TFCond_DefenseBuffNoCritBlock, 0.125);
 							}
 						}
 					}
@@ -1339,24 +1372,36 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			for(int i = 1; i <= MaxClients; i++)
 			{
-				if(IsClientInGame(i) && IsFakeClient(i) && IsPlayerAlive(i) && TF2_GetClientTeam(i) == TFTeam_Blue && !g_bIsControlled[i])
+				if(!IsClientInGame(i))
+					continue;
+				
+				if(!IsFakeClient(i))
+				 	continue;
+				 	
+				if(!IsPlayerAlive(i))
+					continue;
+					
+				if(TF2_GetClientTeam(i) != TFTeam_Blue)
+					continue;
+					
+				if(g_bIsControlled[i])
+					continue;
+				
+				if(TF2_IsPlayerInCondition(i, TFCond_MVMBotRadiowave) || TF2_IsPlayerInCondition(i, TFCond_Taunting))
+					continue;
+					
+				if(GetEntProp(i, Prop_Data, "m_takedamage") != 0)
 				{
-					if(!TF2_IsPlayerInCondition(i, TFCond_MVMBotRadiowave) && !TF2_IsPlayerInCondition(i, TFCond_Taunting))
+					float flSpawnedAgo = GetGameTime() - g_flSpawnTime[i];
+					if(TF2_GetPlayerClass(i) != TFClass_Spy && flSpawnedAgo >= 1.5) //Allow the bots some time to spawn
 					{
-						if(GetEntProp(i, Prop_Data, "m_takedamage") != 0)
-						{
-							float flSpawnedAgo = GetGameTime() - g_flSpawnTime[i];
-							if(TF2_GetPlayerClass(i) != TFClass_Spy && flSpawnedAgo >= 1.5) //Allow the bots some time to spawn
-							{
-								iPlayerarray[iPlayercount] = i;
-								iPlayercount++;
-							}
-							else if(TF2_GetPlayerClass(i) == TFClass_Spy && flSpawnedAgo >= 5.0) //Spies need extra time to teleport
-							{
-								iPlayerarray[iPlayercount] = i;
-								iPlayercount++;
-							}
-						}
+						iPlayerarray[iPlayercount] = i;
+						iPlayercount++;
+					}
+					else if(TF2_GetPlayerClass(i) == TFClass_Spy && flSpawnedAgo >= 5.0) //Spies need extra time to teleport
+					{
+						iPlayerarray[iPlayercount] = i;
+						iPlayercount++;
 					}
 				}
 			}
@@ -1480,63 +1525,66 @@ void TF2_InstructPlayer(int client)
 	}
 }
 
-public Action Event_FlagEvent(Event event, const char[] name, bool dontBroadcast)
+public void Event_FlagEvent(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = event.GetInt("player");
 	int eventtype = event.GetInt("eventtype");
 	
-	if(client > 0 && client <= MaxClients && IsClientInGame(client) && eventtype != TF_FLAGEVENT_DEFENDED)
+	if(client <= 0 || client > MaxClients || !IsClientInGame(client))
+		return;
+	
+	if(eventtype == TF_FLAGEVENT_DEFENDED)
+		return;
+	
+	if(eventtype == TF_FLAGEVENT_PICKEDUP)
 	{
-		if(eventtype == TF_FLAGEVENT_PICKEDUP)
+		if(!IsFakeClient(client))
 		{
-			if(!IsFakeClient(client))
+			if(TF2_IsGiant(client))	//Giants have max flag level and cant receive buffs
 			{
-				if(TF2_IsGiant(client))	//Giants have max flag level and cant receive buffs
-				{
-					g_iFlagCarrierUpgradeLevel[client] = 4;
-					g_flNextBombUpgradeTime[client] = GetGameTime();
-				}
-				else if(g_iFlagCarrierUpgradeLevel[client] == 0)	//Start upgrading from the beginning
-				{
-					g_flNextBombUpgradeTime[client] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_1st_upgrade")); 
-				}
-				else if(!TF2_IsGiant(client))	//Add existing buffs
-				{
-					if(g_iFlagCarrierUpgradeLevel[client] >= 1) TF2_AddCondition(client, TFCond_DefenseBuffNoCritBlock, TFCondDuration_Infinite);
-					if(g_iFlagCarrierUpgradeLevel[client] == 3) TF2_AddCondition(client, TFCond_CritOnWin, TFCondDuration_Infinite);
-				}
-				
-				RequestFrame(UpdateBombHud, GetClientUserId(client));
+				g_iFlagCarrierUpgradeLevel[client] = 4;
+				g_flNextBombUpgradeTime[client] = GetGameTime();
 			}
-		}
-		else
-		{
-			if(!IsFakeClient(client))
+			else if(g_iFlagCarrierUpgradeLevel[client] == 0)	//Start upgrading from the beginning
 			{
-				TF2_RemoveCondition(client, TFCond_DefenseBuffNoCritBlock);
-				TF2_RemoveCondition(client, TFCond_CritOnWin);
-				
-				Address pRegen = TF2Attrib_GetByName(client, "health regen");
-				float flRegen = 0.0;
-				if(pRegen != Address_Null)
-				{
-					flRegen = TF2Attrib_GetValue(pRegen);
-					
-					if(flRegen > 45.0)
-					{
-						TF2Attrib_SetValue(pRegen, flRegen - 45.0);
-						TF2Attrib_ClearCache(client);
-					}
-					else
-					{
-						TF2Attrib_RemoveByName(client, "health regen");
-					}
-				}
+				g_flNextBombUpgradeTime[client] = GetGameTime() + GetConVarFloat(FindConVar("tf_mvm_bot_flag_carrier_interval_to_1st_upgrade")); 
+			}
+			else if(!TF2_IsGiant(client))	//Add existing buffs
+			{
+				if(g_iFlagCarrierUpgradeLevel[client] >= 1) TF2_AddCondition(client, TFCond_DefenseBuffNoCritBlock, TFCondDuration_Infinite);
+				if(g_iFlagCarrierUpgradeLevel[client] == 3) TF2_AddCondition(client, TFCond_CritOnWin, TFCondDuration_Infinite);
 			}
 			
-			g_iFlagCarrierUpgradeLevel[client] = 0;
-			g_flNextBombUpgradeTime[client] = GetGameTime();
+			RequestFrame(UpdateBombHud, GetClientUserId(client));
 		}
+	}
+	else
+	{
+		if(!IsFakeClient(client))
+		{
+			TF2_RemoveCondition(client, TFCond_DefenseBuffNoCritBlock);
+			TF2_RemoveCondition(client, TFCond_CritOnWin);
+			
+			Address pRegen = TF2Attrib_GetByName(client, "health regen");
+			float flRegen = 0.0;
+			if(pRegen != Address_Null)
+			{
+				flRegen = TF2Attrib_GetValue(pRegen);
+				
+				if(flRegen > 45.0)
+				{
+					TF2Attrib_SetValue(pRegen, flRegen - 45.0);
+					TF2Attrib_ClearCache(client);
+				}
+				else
+				{
+					TF2Attrib_RemoveByName(client, "health regen");
+				}
+			}
+		}
+		
+		g_iFlagCarrierUpgradeLevel[client] = 0;
+		g_flNextBombUpgradeTime[client] = GetGameTime();
 	}
 }
 
@@ -1557,31 +1605,28 @@ stock float[] TF2_GetBombHatchPosition()
 public void UpdateBombHud(int userid)
 {
 	int client = GetClientOfUserId(userid)
-	if(client > 0)
-	{
-		int iResource = FindEntityByClassname(-1, "tf_objective_resource");
-		SetEntProp(iResource,      Prop_Send, "m_nFlagCarrierUpgradeLevel", g_iFlagCarrierUpgradeLevel[client]);
-		SetEntPropFloat(iResource, Prop_Send, "m_flMvMBaseBombUpgradeTime", (TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden)) ? -1.0 : GetGameTime());
-		SetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime", (TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden)) ? -1.0 : g_flNextBombUpgradeTime[client]);	
-	}
+	if(client <= 0)
+		return;
+		
+	int iResource = FindEntityByClassname(-1, "tf_objective_resource");
+	SetEntProp(iResource,      Prop_Send, "m_nFlagCarrierUpgradeLevel", g_iFlagCarrierUpgradeLevel[client]);
+	SetEntPropFloat(iResource, Prop_Send, "m_flMvMBaseBombUpgradeTime", (TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden)) ? -1.0 : GetGameTime());
+	SetEntPropFloat(iResource, Prop_Send, "m_flMvMNextBombUpgradeTime", (TF2_IsPlayerInCondition(client, TFCond_UberchargedHidden)) ? -1.0 : g_flNextBombUpgradeTime[client]);	
 }
 
 public void Event_ResetBots(Event event, const char[] name, bool dontBroadcast)
 {
 	for(int client = 1; client <= MaxClients; client++)
 	{
-		if(IsClientInGame(client))
-		{
-			g_bCanPlayAsBot[client] = true;
-		
-			if(!IsFakeClient(client))
-			{
-				if(g_bControllingBot[client])
-				{
-					ForcePlayerSuicide(client);
-				}
-			}
-		}
+		if(!IsClientInGame(client))
+			continue;
+			
+		g_bCanPlayAsBot[client] = true;
+	
+		if(IsFakeClient(client) || !g_bControllingBot[client])
+			continue;
+			
+		ForcePlayerSuicide(client);
 	}
 }
 
@@ -1591,55 +1636,55 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	
-	if(client > 0 && client <= MaxClients && IsClientInGame(client))
-	{
-		g_flSpawnTime[client] = GetGameTime();
-	
-		if(!IsFakeClient(client))
-		{
-			if(g_bSkipInventory[client])
-			{
-				TF2_RestoreBot(client);
-				TF2_ChangeClientTeam(client, TFTeam_Spectator);
+	if(client <= 0 || client > MaxClients || !IsClientInGame(client))
+		return;
 
-				g_bSkipInventory[client] = false;
-			}
-		}
-		
-		if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) != TFClass_Spy)
+	g_flSpawnTime[client] = GetGameTime();
+
+	if(!IsFakeClient(client))
+	{
+		if(g_bSkipInventory[client])
 		{
-			//Accessing m_nBotAttribs on players is dangerous.
-			int iBotAttrs = IsFakeClient(client) ? GetEntData(client, g_iOffsetBotAttribs) : g_iPlayerAttributes[client];
-			if(!(iBotAttrs & view_as<int>(TELEPORTTOHINT)))
+			TF2_RestoreBot(client);
+			TF2_ChangeClientTeam(client, TFTeam_Spectator);
+
+			g_bSkipInventory[client] = false;
+		}
+	}
+	
+	if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) != TFClass_Spy)
+	{
+		//Accessing m_nBotAttribs on players is dangerous.
+		int iBotAttrs = IsFakeClient(client) ? GetEntData(client, g_iOffsetBotAttribs) : g_iPlayerAttributes[client];
+		if(!(iBotAttrs & view_as<int>(TELEPORTTOHINT)))
+		{
+			int iTele = TF2_FindTeleNearestToBombHole();
+			if(IsValidEntity(iTele))
 			{
-				int iTele = TF2_FindTeleNearestToBombHole();
-				if(IsValidEntity(iTele))
+				float flPos[3];
+				GetEntPropVector(iTele, Prop_Send, "m_vecOrigin", flPos);
+				
+				flPos[2] += 15.0;
+				//Bots need to be teleported to player teleporters
+				//Players need to be teleported to all teleporters
+				
+				TF2_RemoveCondition(client, TFCond_UberchargedHidden);
+				TF2_AddCondition(client, TFCond_UberchargedCanteen, 5.0);
+				TF2_AddCondition(client, TFCond_UberchargeFading, 5.0);
+				
+				int iBuilder = EntRefToEntIndex(GetEntPropEnt(iTele, Prop_Send, "m_hBuilder"));
+				if(iBuilder > 0 && iBuilder <= MaxClients && IsClientInGame(iBuilder) && IsFakeClient(client) && !IsFakeClient(iBuilder))
 				{
-					float flPos[3];
-					GetEntPropVector(iTele, Prop_Send, "m_vecOrigin", flPos);
+					TeleportEntity(client, flPos, NULL_VECTOR, NULL_VECTOR);
 					
-					flPos[2] += 15.0;
-					//Bots need to be teleported to player teleporters
-					//Players need to be teleported to all teleporters
-					
-					TF2_RemoveCondition(client, TFCond_UberchargedHidden);
-					TF2_AddCondition(client, TFCond_UberchargedCanteen, 5.0);
-					TF2_AddCondition(client, TFCond_UberchargeFading, 5.0);
-					
-					int iBuilder = EntRefToEntIndex(GetEntPropEnt(iTele, Prop_Send, "m_hBuilder"));
-					if(iBuilder > 0 && iBuilder <= MaxClients && IsClientInGame(iBuilder) && IsFakeClient(client) && !IsFakeClient(iBuilder))
+					//Anti ear rape
+					float flSpawnedAgo = GetGameTime() - flLastTeleSoundTime;
+					if(flSpawnedAgo >= 0.5)
 					{
-						TeleportEntity(client, flPos, NULL_VECTOR, NULL_VECTOR);
-						
-						//Anti ear rape
-						float flSpawnedAgo = GetGameTime() - flLastTeleSoundTime;
-						if(flSpawnedAgo >= 0.5)
-						{
-							EmitSoundToAll(SOUND_TELEPORT_DELIVER, iTele, SNDCHAN_STATIC, 150, _, 1.0);
-						}
-						
-						flLastTeleSoundTime = GetGameTime();
+						EmitSoundToAll(SOUND_TELEPORT_DELIVER, iTele, SNDCHAN_STATIC, 150, _, 1.0);
 					}
+					
+					flLastTeleSoundTime = GetGameTime();
 				}
 			}
 		}
@@ -1779,18 +1824,18 @@ public Action OnObjectThink(int iEnt)
 
 public Action Listener_ChoseHuman(int client, char[] command, int args)
 {
-	if(IsClientInGame(client) && g_bCanPlayAsBot[client] && IsPlayerAlive(client))
-	{
-		if(TF2_GetClientTeam(client) == TFTeam_Red)
-		{
-			char strArg1[8];
-			GetCmdArg(1, strArg1, sizeof(strArg1));
-			
-			//Player pressed F4
-			if(StringToInt(strArg1) == 1)
-				g_bCanPlayAsBot[client] = false;
-		}
-	}
+	if(!IsClientInGame(client) || !g_bCanPlayAsBot[client] || !IsPlayerAlive(client))
+		return Plugin_Continue;
+		
+	if(TF2_GetClientTeam(client) != TFTeam_Red)
+		return Plugin_Continue;
+		
+	char strArg1[8];
+	GetCmdArg(1, strArg1, sizeof(strArg1));
+	
+	//Player pressed F4
+	if(StringToInt(strArg1) == 1)
+		g_bCanPlayAsBot[client] = false;
 	
 	return Plugin_Continue;
 }
