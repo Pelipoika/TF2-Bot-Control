@@ -2208,7 +2208,7 @@ public Action Timer_RestoreBot(Handle timer, DataPack pack)
 	int iBomb = EntRefToEntIndex(pack.ReadCell());
 	int iBot = GetClientOfUserId(pack.ReadCell());
 	
-	if (IsValidEntity(iBomb) && iBot > 0 && iBot <= MaxClients)
+	if (IsValidEntity(iBomb) && iBot > 0 && iBot <= MaxClients && IsPlayerAlive(iBot))
 		TF2_PickupBomb(iBot, iBomb);
 }
 
@@ -2802,6 +2802,9 @@ public void Frame_TF2_PickupBomb(DataPack pack)
 	pack.Reset();
 	int iFlag = EntRefToEntIndex(pack.ReadCell());
 	int iClient = GetClientOfUserId(pack.ReadCell());
+	
+	if(!IsPlayerAlive(iClient))
+		return;
 	
 	if (IsValidEntity(iFlag) && GetEntPropEnt(iFlag, Prop_Send, "moveparent") == iClient && iClient > 0 && iClient <= MaxClients)
 	{
