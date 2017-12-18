@@ -408,6 +408,12 @@ public Action Command_ToggleRandomPicker(int client, int args)
 			iRobotCount++;
 	}
 	
+	if(iRobotCount >= 4 && !CheckCommandAccess(client, "sm_admin", ADMFLAG_ROOT, true) || !g_bCanPlayAsBot[client])
+	{
+		CPrintToChat(client, "{red}Robots are full.");
+		return Plugin_Handled;
+	}
+	
 	if(!g_bRandomlyChooseBot[client])
 	{			
 		CPrintToChat(client, "{arcana}We will now automatically choose a bot for you when one is available! Type !randombot again to stop playing as random bots");
@@ -417,12 +423,6 @@ public Action Command_ToggleRandomPicker(int client, int args)
 	{
 		CPrintToChat(client, "{arcana}Random bot choosing is now {red}OFF");
 		g_bRandomlyChooseBot[client] = false;
-	}
-	
-	if(iRobotCount >= 4 && !CheckCommandAccess(client, "sm_admin", ADMFLAG_ROOT, true))
-	{
-		CPrintToChat(client, "{red}Robots are full.");
-		return Plugin_Handled;
 	}
 	
 	if(TF2_GetClientTeam(client) != TFTeam_Spectator 
@@ -1679,7 +1679,7 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 					
 					//Anti ear rape
 					float flSpawnedAgo = GetGameTime() - flLastTeleSoundTime;
-					if(flSpawnedAgo >= 0.5)
+					if(flSpawnedAgo >= 1.0)
 					{
 						EmitSoundToAll(SOUND_TELEPORT_DELIVER, iTele, SNDCHAN_STATIC, 150, _, 1.0);
 					}
