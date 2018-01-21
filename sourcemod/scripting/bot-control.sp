@@ -361,6 +361,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_joinbrobot", Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_robot",      Command_ToggleRandomPicker);
 	RegConsoleCmd("sm_randombot",  Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_randomrobot",  Command_ToggleRandomPicker);
 	
 	RegConsoleCmd("sm_debugbot",   Command_Debug);
 	
@@ -857,6 +858,10 @@ public Action OnFlagTouch(int iEntity, int iOther)
 	//If its not a client we don't care
 	if(iOther <= 0 || iOther > MaxClients)
 		return Plugin_Continue;
+	
+	//Only care about blues
+	if(TF2_GetClientTeam(iOther) != TFTeam_Blue)
+		return Plugin_Handled
 	
 	//Controlled bots should never be able to pickup bomb
 	if(g_bIsControlled[iOther])
