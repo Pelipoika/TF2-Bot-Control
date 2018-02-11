@@ -1219,7 +1219,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);
 
 				//Detonate buster if the player is pressing M1 or taunting
-				if(buttons & IN_ATTACK || TF2_IsPlayerInCondition(client, TFCond_Taunting))
+				if((buttons & IN_ATTACK || TF2_IsPlayerInCondition(client, TFCond_Taunting)) && !(g_iPlayerAttributes[client] & view_as<int>(ALWAYSFIREWEAPON)))
 				{
 					TF2_RestoreBot(client);
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
