@@ -3,38 +3,24 @@
 	/* Team Fortress 2 */
 	"tf"
 	{
-		"Addresses"
-		{
-			"FlagTouch"
-			{
-				"windows"
-				{
-					"signature" "CCaptureFlag::FlagTouch"
-				}
-				"linux"
-				{
-					"signature" "CCaptureFlag::FlagTouch"
-				}
-			}
-		}
 		"Signatures"
 		{
 			"CTFBot::LeaveSquad"	//"Squad leader is dead"
 			{
 				"library"	"server"
-				"windows"	"\x56\x8B\xF1\x8B\x8E\xC0\x25\x00\x00"
+				"windows"	"\x56\x8B\xF1\x8B\x8E\xC8\x25\x00\x00"
 				"linux"		"@_ZN6CTFBot10LeaveSquadEv"
 			}
 			"CTFPlayer::PlaySpecificSequence"	//"primary_deploybomb"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\x75\x08\x57\x56\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xD8\x83\xFB\xFF\x74\x2A\x8B\x35\x2A\x2A\x2A\x2A\x8B\xCE\x8B\x16\xFF\x52\x64\x8B\x8F\x90\x20\x00\x00\x53\x6A\x13"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\x75\x08\x57\x56\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xD8\x83\xFB\xFF\x74\x2A\x8B\x35\x2A\x2A\x2A\x2A\x8B\xCE\x8B\x16\xFF\x52\x64\x8B\x8F\x94\x20\x00\x00\x53\x6A\x13"
 				"linux"		"@_ZN9CTFPlayer20PlaySpecificSequenceEPKc"
 			}
 			"CTFPlayer::RemoveObject" //"mvm_mission_update"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x8B\xD1\x56\x8B\xB2\x78\x21\x00\x00"
+				"windows"	"\x55\x8B\xEC\x8B\xD1\x56\x8B\xB2\x7C\x21\x00\x00"
 				"linux"		"@_ZN9CTFPlayer12RemoveObjectEP11CBaseObject"
 			}
 			"CTFBot::SetMission"	//"mvm_sentrybuster_killed"
@@ -52,7 +38,7 @@
 			"CTFBot::GetEventChangeAttributes"	//"ChangeBotAttributes: Failed to find eve"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x28\x27\x00\x00"
+				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x30\x27\x00\x00"
 				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
 			}
 			"CCaptureFlag::AddFollower"	//"models/bots/demo/bot_sentry_buster.mdl"
@@ -70,7 +56,7 @@
 			"CTFBot::HasTag"	//"bot_gatebot"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x56\x33\xF6\x57\x39\xB3\x6C\x26\x00\x00"
+				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x56\x33\xF6\x57\x39\xB3\x74\x26\x00\x00"
 				"linux"		"@_ZN6CTFBot6HasTagEPKc"
 			}
 			"DispatchParticleEffect"	//"MODEL '%S' DOESN'T HAVE ATTACHMENT '%S' TO ATTACH PARTICLE SYSTEM '%S' TO.\N"
@@ -100,14 +86,9 @@
 		}
 		"Offsets"
 		{
-			"CBaseEntity::IsPlayer"
-			{		
-				"windows"	"80"		
-				"linux"		"81"
-			}			
 			"CBaseEntity::ShouldTransmit"		
-			{		
-				"windows"	"18"		
+			{
+				"windows"	"18"
 				"linux"		"19"
 			}
 			"CBaseEntity::WorldSpaceCenter"		
@@ -153,28 +134,23 @@
 			
 			"m_nWeaponRestrict"	//m_nBotAttrs - 1*4
 			{
-				"windows"	"480"
-			//	"linux"		"updateme"
+				"windows"	"484"
 			}
 			"m_Squad" //m_nWeaponRestrict + 28
 			{
 				"windows"	"28"
-			//	"linux"		"updateme"
 			}
 			"m_nBotAttrs"		//https://github.com/sigsegv-mvm/mvm-reversed/blob/508dc9459f54033a59207dab089c18285837b757/server/tf/bot/behavior/tf_bot_scenario_monitor.cpp#L135 "Cannot teleport to hint with out Attributes TeleportToHint"
 			{
-				"windows"	"484"
-			//	"linux"		"updateme"
+				"windows"	"488"
 			}
 			"m_flAutoJumpMin"	//CTFBot::ShouldAutoJump
 			{
-				"windows"	"832"
-			//	"linux"		"updateme" 
+				"windows"	"836"
 			}
 			"m_flAutoJumpMax"	//CTFBot::ShouldAutoJump
 			{
-				"windows"	"836"
-			//	"linux"		"updateme"
+				"windows"	"840"
 			}
 			"m_bMissionBot"
 			{

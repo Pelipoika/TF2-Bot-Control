@@ -274,7 +274,8 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//silent pickup? or maybe it doesnt exist im not sure.
 	if ((g_hSDKPickup = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 	
-	// Member: m_bViewingCYOAPDA (offset 9100)
+	// Member: m_bViewingCYOAPDA (offset 9160)
+	PrintToServer("m_bViewingCYOAPDA = %i", FindSendPropInfo("CTFPlayer", "m_bViewingCYOAPDA"));
 	
 	//m_nWeaponRestrict 9580
 	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
@@ -288,7 +289,6 @@ public void OnPluginStart()
 	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))		g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
 	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))		g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
 	
-	PrintToServer("m_bViewingCYOAPDA = %i", FindSendPropInfo("CTFPlayer", "m_bViewingCYOAPDA"));
 	
 	g_iOffsetSquad = g_iOffsetWeaponRestrictions + GameConfGetOffset(hConf, "m_Squad");
 	
