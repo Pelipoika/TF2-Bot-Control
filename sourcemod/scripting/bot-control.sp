@@ -563,13 +563,13 @@ public int MenuAttributeHandler(Menu menu, MenuAction action, int param1, int pa
 
 public MRESReturn CFilterTFBotHasTag(int iFilter, Handle hReturn, Handle hParams)
 {
-	if(!GameRules_GetProp("m_bPlayingMannVsMachine") || DHookIsNullParam(hParams, 2))
+	if(!GameRules_GetProp("m_bPlayingMannVsMachine") || DHookIsNullParam(hParams, 2) || DHookIsNullParam(hParams, 1))
 		return MRES_Ignored;
 
 	int iEntity = DHookGetParam(hParams, 1);
 	int iOther  = DHookGetParam(hParams, 2);
 	
-	if(iOther <= 0 || iOther > MaxClients)
+	if(iOther <= 0 || iOther > MaxClients || !IsClientInGame(iOther))
 		return MRES_Ignored;
 	
 	//Don't care about real bots
@@ -723,8 +723,13 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if(StrEqual(classname, "filter_tf_bot_has_tag"))
 	{
-		DHookEntity(g_hCFilterTFBotHasTag, true, entity);
+		SDKHook(entity, SDKHook_SpawnPost, OnFilterSpawnPos);
 	}
+}
+
+public void OnFilterSpawnPos(int entity)
+{
+	DHookEntity(g_hCFilterTFBotHasTag, true, entity);
 }
 
 void Frame_SentryVision_Create(int iRef)
