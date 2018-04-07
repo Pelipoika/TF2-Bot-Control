@@ -473,6 +473,7 @@ public void OnClientPutInServer(int client)
 	DHookEntity(g_hIsValidTarget,      true, client);
 	
 	SDKHook(client, SDKHook_SetTransmit, Hook_SpyTransmit);
+	SDKHook(client, SDKHook_OnTakeDamage, Player_OnTakeDamage);
 }
 
 public Action Command_Debug(int client, int args)
@@ -575,6 +576,12 @@ public MRESReturn CFilterTFBotHasTag(int iFilter, Handle hReturn, Handle hParams
 	//Don't care about real bots
 	if(IsFakeClient(iOther))
 		return MRES_Ignored;
+	
+	if(!IsPlayerAlive(iOther))
+	{
+		DHookSetReturn(hReturn, false);
+		return MRES_Supercede;
+	}
 	
 	//Don't care about players not controlling a bot
 	if(!g_bControllingBot[iOther])
@@ -1445,6 +1452,32 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	return Plugin_Continue;
 }
 
+public Action Player_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+	if(victim <= 0 || victim > MaxClients)
+		return Plugin_Continue;
+	
+	if(attacker <= 0 || attacker > MaxClients)
+		return Plugin_Continue;
+	
+	if(!TF2_IsGiant(victim))
+		return Plugin_Continue;
+	
+	bool bAnnounce = GetRandomInt(0, 100) <= (FindConVar("tf_bot_notice_backstab_chance").IntValue);
+	if(!bAnnounce)
+		return Plugin_Continue;
+	
+	if(damagecustom == TF_CUSTOM_BACKSTAB && damagetype & DMG_CRIT)
+	{
+		// Indicate to the giant that he is getting backstabbed.
+		EmitSoundToClient(victim, "player/spy_shield_break.wav");
+		
+		PrintCenterText(victim, "!!!!!! YOU WERE BACKSTABBED !!!!!");
+	}
+
+	return Plugin_Continue;
+}
+
 void TF2_InstructPlayer(int client)
 {
  	//Instruction
@@ -2300,7 +2333,7 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	TF2_RemoveAllWearables(client);
 	TF2Attrib_RemoveAll(client);
 	TF2Attrib_ClearCache(client);
-	TF2_SetFakeClient(client, true);
+	//TF2_SetFakeClient(client, true);
 	
 	//New hot technology
 	g_flControlEndTime[client]      = GetGameTime() + 35.0;
@@ -2768,16 +2801,16 @@ stock int TF2_DropBomb(int client)
 stock void TF2_PickupBomb(int iClient, int iFlag)
 {
 //	PrintToChatAll("TF2_PickupBomb %N %i", iClient, iFlag);
-	if (!IsFakeClient(iClient)) 
-		TF2_SetFakeClient(iClient, false);
+	//if (!IsFakeClient(iClient)) 
+		//TF2_SetFakeClient(iClient, false);
 	
 	SDKCall(g_hSDKPickup, iFlag, iClient, true);	
 	
-	DataPack pack = new DataPack();
-	pack.WriteCell(EntIndexToEntRef(iFlag));
-	pack.WriteCell(GetClientUserId(iClient));
+	//DataPack pack = new DataPack();
+	//pack.WriteCell(EntIndexToEntRef(iFlag));
+	//pack.WriteCell(GetClientUserId(iClient));
 	
-	RequestFrame(Frame_TF2_PickupBomb, pack);
+	//RequestFrame(Frame_TF2_PickupBomb, pack);
 }
 
 //Gets a bots tag and does checking for real bots
