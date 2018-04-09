@@ -732,11 +732,37 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnFilterSpawnPos);
 	}
+	else if(StrEqual(classname, "entity_revive_marker"))
+	{
+		SDKHook(entity, SDKHook_SpawnPost, OnReviveMarkerSpawnPost);
+	}
 }
 
 public void OnFilterSpawnPos(int entity)
 {
 	DHookEntity(g_hCFilterTFBotHasTag, true, entity);
+}
+
+public void OnReviveMarkerSpawnPost(int entity)
+{
+	if(!TF2_IsMvM())
+		return;
+
+	//Kill it after a frame if it belongs to blue team.
+	RequestFrame(OnReviveMarkerSpawnPost_Frame, EntIndexToEntRef(entity));
+}
+
+void OnReviveMarkerSpawnPost_Frame(int iRef)
+{
+	int rev = EntRefToEntIndex(iRef);
+	if(rev == INVALID_ENT_REFERENCE)
+		return;
+	
+	int iRevTeam = GetEntProp(rev, Prop_Send, "m_iTeamNum");
+	if(iRevTeam != 3)
+		return;
+	
+	AcceptEntityInput(rev, "Kill");
 }
 
 void Frame_SentryVision_Create(int iRef)
@@ -1058,6 +1084,21 @@ public void TF2_OnConditionAdded(int client, TFCond cond)
 	{
 		TF2_RemoveCondition(client, view_as<TFCond>(114));
 	}
+	
+	//Gate stun
+	if(cond == TFCond_MVMBotRadiowave)
+	{
+		float flStunDuration = GetConditionDuration(client, TFCond_MVMBotRadiowave);
+		
+		TF2_StunPlayer(client, flStunDuration, 1.0, 35, 0);
+	}
+}
+
+float GetConditionDuration(int client, TFCond cond)
+{
+	Address tmp = view_as<Address>(LoadFromAddress(GetEntityAddress(client) + view_as<Address>(g_iCondSourceOffs), NumberType_Int32));
+	Address addr = view_as<Address>(view_as<int>(tmp) + (view_as<int>(cond) * COND_SOURCE_SIZE) + (2 * 4));
+	return view_as<float>(LoadFromAddress(addr, NumberType_Int32));
 }
 
 public void OnCurrencySpawnPost(int iCurrency)
@@ -2205,29 +2246,8 @@ stock void TF2_RestoreBot(int client)
 			}
 		}
 		
-		//Mirror conditions
-		for (int cond = 0; cond <= view_as<int>(TFCond_SpawnOutline); ++cond)
-		{
-			if(cond == 5 || cond == 9 || cond == 51)
-				continue;
-			
-			if (!TF2_IsPlayerInCondition(client, view_as<TFCond>(cond)))
-				continue;
-			
-			Address tmp = view_as<Address>(LoadFromAddress(GetEntityAddress(client) + view_as<Address>(g_iCondSourceOffs), NumberType_Int32));
-			Address addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (2 * 4));
-			int value = LoadFromAddress(addr, NumberType_Int32);
-			
-			addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (3 * 4));
-			int provider = LoadFromAddress(addr, NumberType_Int32) & ENT_ENTRY_MASK;
-			
-			//Only mirror conditions that don't last "forever"
-			if(value > 0.0)
-			{
-				TF2_AddCondition(iBot, view_as<TFCond>(cond), view_as<float>(value), (provider > 0 && provider <= MaxClients) ? provider : 0);
-			}
-		}
-	
+		TF2_MirrorConditions(client, iBot);
+		
 		float flPos[3], flAng[3], flVelocity[3];
 		GetClientAbsOrigin(client, flPos);
 		GetClientEyeAngles(client, flAng);
@@ -2243,6 +2263,32 @@ stock void TF2_RestoreBot(int client)
 	}
 
 	TF2_ClearBot(client);
+}
+
+void TF2_MirrorConditions(int from, int to)
+{
+	//Mirror conditions
+	for (TFCond cond = TFCond_Slowed; cond <= TFCond_AirCurrent; ++cond)
+	{
+		if(cond == TFCond_Ubercharged || cond == TFCond_CloakFlicker 
+		|| cond == TFCond_UberchargedHidden)
+			continue;
+		
+		if (!TF2_IsPlayerInCondition(from, cond))
+			continue;
+		
+		Address tmp = view_as<Address>(LoadFromAddress(GetEntityAddress(from) + view_as<Address>(g_iCondSourceOffs), NumberType_Int32));
+		Address addr = view_as<Address>(view_as<int>(tmp) + (view_as<int>(cond) * COND_SOURCE_SIZE) + (3 * 4));
+		int provider = LoadFromAddress(addr, NumberType_Int32) & ENT_ENTRY_MASK;
+		
+		float flCondDuration = GetConditionDuration(from, cond);
+		
+		//Only mirror conditions that don't last "forever"
+		if(flCondDuration > 0.0)
+		{
+			TF2_AddCondition(to, cond, flCondDuration, (provider > 0 && provider <= MaxClients) ? provider : 0);
+		}
+	}
 }
 
 public Action Timer_RestoreBot(Handle timer, DataPack pack)
@@ -2421,28 +2467,8 @@ stock void TF2_MirrorPlayer(int iTarget, int client)
 	TF2_RemoveCondition(client, TFCond_Zoomed);		
 	TF2_RemoveCondition(client, TFCond_Slowed);
 	
-	//Mirror conditions
-	for (int cond = 0; cond <= view_as<int>(TFCond_SpawnOutline); ++cond)
-	{
-		if(cond == 5 || cond == 9 || cond == 51)
-			continue;
-		
-		if (!TF2_IsPlayerInCondition(iTarget, view_as<TFCond>(cond)))
-			continue;
-		
-		Address tmp = view_as<Address>(LoadFromAddress(GetEntityAddress(iTarget) + view_as<Address>(g_iCondSourceOffs), NumberType_Int32));
-		Address addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (2 * 4));
-		int value = LoadFromAddress(addr, NumberType_Int32);
-		
-		addr = view_as<Address>(view_as<int>(tmp) + (cond * COND_SOURCE_SIZE) + (3 * 4));
-		int provider = LoadFromAddress(addr, NumberType_Int32) & ENT_ENTRY_MASK;
-		
-		//Only mirror conditions that don't last "forever"
-		if(value > 0.0)
-		{
-			TF2_AddCondition(client, view_as<TFCond>(cond), view_as<float>(value), (provider > 0 && provider <= MaxClients) ? provider : 0);
-		}
-	}
+	//Mirror conditions	
+	TF2_MirrorConditions(iTarget, client);
 	
 	Address TargetSquad = TF2_GetBotSquad(iTarget);
 	if(TargetSquad != Address_Null)
@@ -2893,7 +2919,7 @@ stock void TF2_SetFakeClient(int client, bool bOn)
 
 stock void TF2_RemoveAllConditions(int client)
 {
-	for (int cond = 0; cond <= view_as<int>(TFCond_RuneAgility); ++cond)
+	for (int cond = 0; cond <= view_as<int>(TFCond_AirCurrent); ++cond)
 		TF2_RemoveCondition(client, view_as<TFCond>(cond));
 }
 
