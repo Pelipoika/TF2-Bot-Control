@@ -1802,6 +1802,9 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 		}
 	}
 	
+	g_bIsControlled[client] = false;
+	g_iController[client] = -1;
+	
 	if(IsFakeClient(client) && g_bIsControlled[client])
 	{
 		dontBroadcast = true;
@@ -1809,9 +1812,6 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 		
 		return Plugin_Changed;
 	}
-	
-	g_bIsControlled[client] = false;
-	g_iController[client] = -1;
 	
 	return Plugin_Continue;
 }
