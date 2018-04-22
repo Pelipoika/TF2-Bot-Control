@@ -373,7 +373,10 @@ public void OnPluginStart()
 public void TF2_OnWaitingForPlayersEnd()
 {
 	if(!TF2_IsMvM())
+	{
 		SetFailState("[Bot Control] Disabling for non mvm map");
+		SteamWorks_SetGameDescription("Team Fortress 2");
+	}
 }
 
 public Action Command_JoinRed(int client, int args)
@@ -2193,9 +2196,7 @@ stock bool IsStealthed(int client)
 
 stock float GetPercentInvisible(int client)
 {
-	//m_shared = 6560
-
-	int offset = g_imSharedOffs + (81 * 4);
+	int offset = FindSendPropInfo("CTFPlayer", "m_flInvisChangeCompleteTime") - 8;
 	return GetEntDataFloat(client, offset);
 }
 
