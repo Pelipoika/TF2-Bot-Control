@@ -1780,7 +1780,20 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 
 public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
+	Action result = Plugin_Continue;
+
 	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	g_bIsControlled[client] = false;
+	g_iController[client] = -1;
+	
+	if(IsFakeClient(client) && g_bIsControlled[client])
+	{
+		dontBroadcast = true;
+		g_bBlockRagdoll = true;
+		
+		result = Plugin_Changed;
+	}
 
 	SetEntProp(client, Prop_Send, "m_bUseBossHealthBar", 0);
 	TF2_StopSounds(client);
@@ -1808,15 +1821,7 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 	g_bIsControlled[client] = false;
 	g_iController[client] = -1;
 	
-	if(IsFakeClient(client) && g_bIsControlled[client])
-	{
-		dontBroadcast = true;
-		g_bBlockRagdoll = true;
-		
-		return Plugin_Changed;
-	}
-	
-	return Plugin_Continue;
+	return result;
 }
 
 public Action Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
