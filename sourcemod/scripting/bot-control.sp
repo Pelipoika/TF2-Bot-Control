@@ -1155,7 +1155,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		SetEntPropFloat(client, Prop_Send, "m_flCloakMeter", 100.0);
 		
-		if(g_iPlayerAttributes[client] & view_as<int>(AUTOJUMP))
+		if(HasAttributes(client, AUTOJUMP))
 		{
 			if(g_flNextJumpTime[client] <= GetGameTime())
 			{
@@ -1168,7 +1168,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				return Plugin_Changed;
 			}
 			
-			if(TF2_GetPlayerClass(client) == TFClass_DemoMan && g_iPlayerAttributes[client] & view_as<int>(AIRCHARGEONLY))
+			if (TF2_GetPlayerClass(client) == TFClass_DemoMan && HasAttributes(client, AIRCHARGEONLY))
 			{
 				if(GetEntProp(client, Prop_Send, "m_bJumping"))
 				{
@@ -1203,7 +1203,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				buttons &= ~IN_DUCK;
 			}
 			
-			if(g_iPlayerAttributes[client] & view_as<int>(HOLDFIREUNTILFULLRELOAD))
+			if(HasAttributes(client, HOLDFIREUNTILFULLRELOAD))
 			{
 				int iClip1 = GetEntProp(iActiveWeapon, Prop_Send, "m_iClip1");
 				
@@ -1236,7 +1236,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 			
-			if(g_iPlayerAttributes[client] & view_as<int>(ALWAYSFIREWEAPON) && !g_bReloadingBarrage[client])
+			if(HasAttributes(client, ALWAYSFIREWEAPON) && !g_bReloadingBarrage[client])
 			{
 				buttons |= IN_ATTACK;
 			}
@@ -1289,7 +1289,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + 0.5);
 
 				//Detonate buster if the player is pressing M1 or taunting
-				if((buttons & IN_ATTACK || TF2_IsPlayerInCondition(client, TFCond_Taunting)) && !(g_iPlayerAttributes[client] & view_as<int>(ALWAYSFIREWEAPON)))
+				if((buttons & IN_ATTACK || TF2_IsPlayerInCondition(client, TFCond_Taunting)) && !HasAttributes(client, ALWAYSFIREWEAPON))
 				{
 					TF2_RestoreBot(client);
 					TF2_ChangeClientTeam(client, TFTeam_Spectator);
@@ -1987,25 +1987,19 @@ public Action Listener_Build(int client, char[] command, int args)
 //Detours
 public Action CTFBotMedicHeal_SelectPatient(int actor, int old_patient, int &desiredPatient)
 {
-//	PrintToChatAll("actor %i old_patient %i desiredPatient %i", actor, old_patient, desiredPatient);
-	
 	Address MedicsBotsSquad = TF2_GetBotSquad(actor);
-	if(MedicsBotsSquad != Address_Null)
-	{	
-		int iLeader = SDKCall(g_hSDKGetSquadLeader, MedicsBotsSquad);
-		int iLeader2 = TF2_GetBotSquadLeader(actor);
+	if(MedicsBotsSquad == Address_Null)
+		return Plugin_Continue;
 		
-		desiredPatient = iLeader;
-		
-		if(iLeader2 > 0)
-			desiredPatient = iLeader2;
-		
-	//	PrintToChatAll("iLeader = %i, iLeader2 = %i", iLeader, iLeader2);
-		
-		return Plugin_Changed;
-	}
+	int iLeader = SDKCall(g_hSDKGetSquadLeader, MedicsBotsSquad);
+	int iLeader2 = TF2_GetBotSquadLeader(actor);
+	
+	desiredPatient = iLeader;
+	
+	if(iLeader2 > 0)
+		desiredPatient = iLeader2;
 
-	return Plugin_Continue;
+	return Plugin_Changed;
 }
 
 public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget, bool& bResult)
