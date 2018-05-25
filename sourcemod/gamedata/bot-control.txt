@@ -3,6 +3,17 @@
 	/* Team Fortress 2 */
 	"tf"
 	{
+		"Addresses"
+		{
+			"PlayerSapPatch"
+			{
+				"windows"
+				{
+					"signature" "CBaseObject::FindSnapToBuildPos"
+				}
+				"read" "381"
+			}
+		}
 		"Signatures"
 		{
 			"CTFBot::LeaveSquad"	//"Squad leader is dead"
@@ -82,6 +93,12 @@
 				"library"	"server"
 				"windows"	"\x55\x8B\xEC\x51\x53\x8B\xD9\x56\x57\x8D\x8B\xA0\x19\x00\x00"
 				"linux"		"@_ZN9CTFPlayer24PostInventoryApplicationEv"
+			}
+			
+			"CBaseObject::FindSnapToBuildPos" //hidden in "weapon_bone" xrefs https://i.imgur.com/lGKkCT9.png
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x38\x57\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x84\xC0"
 			}
 		}
 		"Offsets"

@@ -148,8 +148,6 @@ int g_iCondSourceOffs = -1;
 int COND_SOURCE_OFFS = 8;
 int COND_SOURCE_SIZE = 20;
 
-int g_imSharedOffs;
-
 //Players bot & player data
 int g_iPlayersBot[MAXPLAYERS+1];
 int g_iPlayerAttributes[MAXPLAYERS+1];
@@ -317,7 +315,23 @@ public void OnPluginStart()
 	int offset = FindSendPropInfo("CTFPlayer", "m_Shared");
 	if (offset == -1) SetFailState("Cannot find m_Shared on CTFPlayer.");
 	g_iCondSourceOffs = offset + COND_SOURCE_OFFS;
-	g_imSharedOffs = offset;
+	
+	
+	//Memory patches
+	Address iAddr = GameConfGetAddress(hConf, "PlayerSapPatch");
+	if(iAddr == Address_Null) SetFailState("Can't find PlayerSapPatch address for patch.");
+	
+	//Eeeeehhh
+	iAddr += view_as<Address>(0x17F);
+	
+	for (int i = 0; i < 2; i++)
+	{
+		int instruction = LoadFromAddress(iAddr + view_as<Address>(i), NumberType_Int8);
+		PrintToServer("0x%x %i", instruction, instruction);
+		
+		//NOP the jz
+		StoreToAddress(iAddr + view_as<Address>(i), 0x90, NumberType_Int8);
+	}
 	
 	delete hConf;
 	
@@ -518,29 +532,29 @@ public Action Command_Debug(int client, int args)
 		
 		Menu g_hMenuAttributes = new Menu(MenuAttributeHandler);
 		g_hMenuAttributes.SetTitle("Bot Attributes\n ");
-		g_hMenuAttributes.AddItem("1",  IsAttributeSet(iTarget, AGGRESSIVE)              ? "✅ AGGRESSIVE"              : "AGGRESSIVE");
-		g_hMenuAttributes.AddItem("2",  IsAttributeSet(iTarget, SUPPRESSFIRE)            ? "✅ SUPPRESSFIRE"            : "SUPPRESSFIRE");
-		g_hMenuAttributes.AddItem("3",  IsAttributeSet(iTarget, DISABLEDODGE)            ? "✅ DISABLEDODGE"            : "DISABLEDODGE");
-		g_hMenuAttributes.AddItem("4",  IsAttributeSet(iTarget, RETAINBUILDINGS)         ? "✅ RETAINBUILDINGS"         : "RETAINBUILDINGS");
-		g_hMenuAttributes.AddItem("5",  IsAttributeSet(iTarget, SPAWNWITHFULLCHARGE)     ? "✅ SPAWNWITHFULLCHARGE"     : "SPAWNWITHFULLCHARGE");
-		g_hMenuAttributes.AddItem("6",  IsAttributeSet(iTarget, ALWAYSCRIT)              ? "✅ ALWAYSCRIT"              : "ALWAYSCRIT");
-		g_hMenuAttributes.AddItem("7",  IsAttributeSet(iTarget, IGNOREENEMIES)           ? "✅ IGNOREENEMIES"           : "IGNOREENEMIES");
-		g_hMenuAttributes.AddItem("8",  IsAttributeSet(iTarget, HOLDFIREUNTILFULLRELOAD) ? "✅ HOLDFIREUNTILFULLRELOAD" : "HOLDFIREUNTILFULLRELOAD");
-		g_hMenuAttributes.AddItem("9",  IsAttributeSet(iTarget, ALWAYSFIREWEAPON)        ? "✅ ALWAYSFIREWEAPON"        : "ALWAYSFIREWEAPON");
-		g_hMenuAttributes.AddItem("10", IsAttributeSet(iTarget, TELEPORTTOHINT)          ? "✅ TELEPORTTOHINT"          : "TELEPORTTOHINT");
-		g_hMenuAttributes.AddItem("11", IsAttributeSet(iTarget, MINIBOSS)                ? "✅ MINIBOSS"                : "MINIBOSS");
-		g_hMenuAttributes.AddItem("12", IsAttributeSet(iTarget, USEBOSSHEALTHBAR)        ? "✅ USEBOSSHEALTHBAR"        : "USEBOSSHEALTHBAR");
-		g_hMenuAttributes.AddItem("13", IsAttributeSet(iTarget, IGNOREFLAG)              ? "✅ IGNOREFLAG"              : "IGNOREFLAG");
-		g_hMenuAttributes.AddItem("14", IsAttributeSet(iTarget, AUTOJUMP)                ? "✅ AUTOJUMP"                : "AUTOJUMP");
-		g_hMenuAttributes.AddItem("15", IsAttributeSet(iTarget, AIRCHARGEONLY)           ? "✅ AIRCHARGEONLY"           : "AIRCHARGEONLY");
-		g_hMenuAttributes.AddItem("16", IsAttributeSet(iTarget, VACCINATORBULLETS)       ? "✅ VACCINATORBULLETS"       : "VACCINATORBULLETS");
-		g_hMenuAttributes.AddItem("17", IsAttributeSet(iTarget, VACCINATORBLAST)         ? "✅ VACCINATORBLAST"         : "VACCINATORBLAST");
-		g_hMenuAttributes.AddItem("18", IsAttributeSet(iTarget, VACCINATORFIRE)          ? "✅ VACCINATORFIRE"          : "VACCINATORFIRE");
-		g_hMenuAttributes.AddItem("19", IsAttributeSet(iTarget, BULLETIMMUNE)            ? "✅ BULLETIMMUNE"            : "BULLETIMMUNE");
-		g_hMenuAttributes.AddItem("20", IsAttributeSet(iTarget, BLASTIMMUNE)             ? "✅ BLASTIMMUNE"             : "BLASTIMMUNE");
-		g_hMenuAttributes.AddItem("21", IsAttributeSet(iTarget, FIREIMMUNE)              ? "✅ FIREIMMUNE"              : "FIREIMMUNE");
-		g_hMenuAttributes.AddItem("22", IsAttributeSet(iTarget, PARACHUTE)               ? "✅ PARACHUTE"               : "PARACHUTE");
-		g_hMenuAttributes.AddItem("23", IsAttributeSet(iTarget, PROJECTILESHIELD)        ? "✅ PROJECTILESHIELD"        : "PROJECTILESHIELD");
+		g_hMenuAttributes.AddItem("1",  HasAttributes(iTarget, AGGRESSIVE)              ? "✅ AGGRESSIVE"              : "AGGRESSIVE");
+		g_hMenuAttributes.AddItem("2",  HasAttributes(iTarget, SUPPRESSFIRE)            ? "✅ SUPPRESSFIRE"            : "SUPPRESSFIRE");
+		g_hMenuAttributes.AddItem("3",  HasAttributes(iTarget, DISABLEDODGE)            ? "✅ DISABLEDODGE"            : "DISABLEDODGE");
+		g_hMenuAttributes.AddItem("4",  HasAttributes(iTarget, RETAINBUILDINGS)         ? "✅ RETAINBUILDINGS"         : "RETAINBUILDINGS");
+		g_hMenuAttributes.AddItem("5",  HasAttributes(iTarget, SPAWNWITHFULLCHARGE)     ? "✅ SPAWNWITHFULLCHARGE"     : "SPAWNWITHFULLCHARGE");
+		g_hMenuAttributes.AddItem("6",  HasAttributes(iTarget, ALWAYSCRIT)              ? "✅ ALWAYSCRIT"              : "ALWAYSCRIT");
+		g_hMenuAttributes.AddItem("7",  HasAttributes(iTarget, IGNOREENEMIES)           ? "✅ IGNOREENEMIES"           : "IGNOREENEMIES");
+		g_hMenuAttributes.AddItem("8",  HasAttributes(iTarget, HOLDFIREUNTILFULLRELOAD) ? "✅ HOLDFIREUNTILFULLRELOAD" : "HOLDFIREUNTILFULLRELOAD");
+		g_hMenuAttributes.AddItem("9",  HasAttributes(iTarget, ALWAYSFIREWEAPON)        ? "✅ ALWAYSFIREWEAPON"        : "ALWAYSFIREWEAPON");
+		g_hMenuAttributes.AddItem("10", HasAttributes(iTarget, TELEPORTTOHINT)          ? "✅ TELEPORTTOHINT"          : "TELEPORTTOHINT");
+		g_hMenuAttributes.AddItem("11", HasAttributes(iTarget, MINIBOSS)                ? "✅ MINIBOSS"                : "MINIBOSS");
+		g_hMenuAttributes.AddItem("12", HasAttributes(iTarget, USEBOSSHEALTHBAR)        ? "✅ USEBOSSHEALTHBAR"        : "USEBOSSHEALTHBAR");
+		g_hMenuAttributes.AddItem("13", HasAttributes(iTarget, IGNOREFLAG)              ? "✅ IGNOREFLAG"              : "IGNOREFLAG");
+		g_hMenuAttributes.AddItem("14", HasAttributes(iTarget, AUTOJUMP)                ? "✅ AUTOJUMP"                : "AUTOJUMP");
+		g_hMenuAttributes.AddItem("15", HasAttributes(iTarget, AIRCHARGEONLY)           ? "✅ AIRCHARGEONLY"           : "AIRCHARGEONLY");
+		g_hMenuAttributes.AddItem("16", HasAttributes(iTarget, VACCINATORBULLETS)       ? "✅ VACCINATORBULLETS"       : "VACCINATORBULLETS");
+		g_hMenuAttributes.AddItem("17", HasAttributes(iTarget, VACCINATORBLAST)         ? "✅ VACCINATORBLAST"         : "VACCINATORBLAST");
+		g_hMenuAttributes.AddItem("18", HasAttributes(iTarget, VACCINATORFIRE)          ? "✅ VACCINATORFIRE"          : "VACCINATORFIRE");
+		g_hMenuAttributes.AddItem("19", HasAttributes(iTarget, BULLETIMMUNE)            ? "✅ BULLETIMMUNE"            : "BULLETIMMUNE");
+		g_hMenuAttributes.AddItem("20", HasAttributes(iTarget, BLASTIMMUNE)             ? "✅ BLASTIMMUNE"             : "BLASTIMMUNE");
+		g_hMenuAttributes.AddItem("21", HasAttributes(iTarget, FIREIMMUNE)              ? "✅ FIREIMMUNE"              : "FIREIMMUNE");
+		g_hMenuAttributes.AddItem("22", HasAttributes(iTarget, PARACHUTE)               ? "✅ PARACHUTE"               : "PARACHUTE");
+		g_hMenuAttributes.AddItem("23", HasAttributes(iTarget, PROJECTILESHIELD)        ? "✅ PROJECTILESHIELD"        : "PROJECTILESHIELD");
 		g_hMenuAttributes.Display(client, MENU_TIME_FOREVER);
 		
 		PrintToConsole(client, "------------------------ END ---------------------\n");
@@ -549,7 +563,7 @@ public Action Command_Debug(int client, int args)
 	return Plugin_Handled;
 }
 
-stock bool IsAttributeSet(int client, AttributeType iAttrib)
+stock bool HasAttributes(int client, AttributeType iAttrib)
 {
 	if(g_iPlayerAttributes[client] & view_as<int>(iAttrib))
 		return true;
@@ -1934,25 +1948,38 @@ public Action Listener_ChoseHuman(int client, char[] command, int args)
 
 public Action Listener_Build(int client, char[] command, int args)
 {
-	if(IsClientInGame(client) && g_bControllingBot[client] && IsPlayerAlive(client))
-	{
-		if(TF2_GetClientTeam(client) == TFTeam_Blue && TF2_GetPlayerClass(client) == TFClass_Engineer)
-		{
-			char strArg1[8], strArg2[8];
-			GetCmdArg(1, strArg1, sizeof(strArg1));
-			GetCmdArg(2, strArg2, sizeof(strArg2));
-			
-			TFObjectType objType = view_as<TFObjectType>(StringToInt(strArg1));
-			TFObjectMode objMode = view_as<TFObjectMode>(StringToInt(strArg2));
-			int iCount = TF2_GetObjectCount(client, objType);
-			
-			if(iCount >= 1)
-				return Plugin_Handled;
-			
-			if(objType == TFObject_Teleporter && objMode == TFObjectMode_Entrance)
-				return Plugin_Handled;
-		}
-	}
+	//Must be alive, ingame and controlling a bot
+	if(!IsClientInGame(client) || !g_bControllingBot[client] || !IsPlayerAlive(client))
+		return Plugin_Continue;
+
+	//Must be on blue team
+	if(TF2_GetClientTeam(client) != TFTeam_Blue)
+		return Plugin_Continue;
+
+	//Must be an engineer
+	if(TF2_GetPlayerClass(client) != TFClass_Engineer)
+		return Plugin_Continue;
+
+	char strArg1[8], strArg2[8];
+	GetCmdArg(1, strArg1, sizeof(strArg1));
+	GetCmdArg(2, strArg2, sizeof(strArg2));
+	
+	TFObjectType objType = view_as<TFObjectType>(StringToInt(strArg1));
+	TFObjectMode objMode = view_as<TFObjectMode>(StringToInt(strArg2));
+	int iCount = TF2_GetObjectCount(client, objType);
+	
+	//Don't allow building more than 1 of each object
+	if(iCount >= 1)
+		return Plugin_Handled;
+	
+	//Don't allow building teleporter entrances
+	if(objType == TFObject_Teleporter && objMode == TFObjectMode_Entrance)
+		return Plugin_Handled;
+	
+	//Don't allow building any teleporters at all 
+	//if the engineer doesn't have the "TELEPORTTOHINT" attribute
+	if(objType == TFObject_Teleporter && !HasAttributes(client, TELEPORTTOHINT))
+		return Plugin_Handled;
 	
 	return Plugin_Continue;
 }
