@@ -321,7 +321,8 @@ public void OnPluginStart()
 	Address iAddr = GameConfGetAddress(hConf, "PlayerSapPatch");
 	if(iAddr == Address_Null) SetFailState("Can't find PlayerSapPatch address for patch.");
 	
-	//Eeeeehhh
+	//TODO
+	//Don't hardcode me :angry:
 	iAddr += view_as<Address>(0x17F);
 	
 	for (int i = 0; i < 2; i++)
@@ -368,14 +369,14 @@ public void OnPluginStart()
 	HookEvent("player_sapped_object", Event_SappedObject);
 	
 	//For idiots like AREK
-	RegConsoleCmd("sm_joinred",    Command_JoinRed);
+	RegConsoleCmd("sm_joinred", Command_JoinRed);
+	RegConsoleCmd("sm_human",   Command_JoinRed);
 	
-	RegConsoleCmd("sm_joinblue",   Command_ToggleRandomPicker);
-	RegConsoleCmd("sm_joinblu",    Command_ToggleRandomPicker);
-	RegConsoleCmd("sm_joinbrobot", Command_ToggleRandomPicker);
-	RegConsoleCmd("sm_robot",      Command_ToggleRandomPicker);
-	RegConsoleCmd("sm_randombot",  Command_ToggleRandomPicker);
-	RegConsoleCmd("sm_randomrobot",  Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_robot",       Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_joinblue",    Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_joinblu",     Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_randombot",   Command_ToggleRandomPicker);
+	RegConsoleCmd("sm_randomrobot", Command_ToggleRandomPicker);
 	
 	RegConsoleCmd("sm_debugbot",   Command_Debug);
 	
@@ -410,7 +411,9 @@ public Action Command_ToggleRandomPicker(int client, int args)
 		
 	if(!IsClientInGame(client))
 		return Plugin_Handled;
-		
+
+	bool bAmSpectator = (TF2_GetClientTeam(client) == TFTeam_Spectator);
+	
 	//Count player bots.
 	int iRobotCount = 0;
 	for(int i = 1; i <= MaxClients; i++)
@@ -426,7 +429,7 @@ public Action Command_ToggleRandomPicker(int client, int args)
 			iRobotCount++;
 	}
 	
-	if(iRobotCount >= 4 && !CheckCommandAccess(client, "sm_admin", ADMFLAG_ROOT, true) || !g_bCanPlayAsBot[client])
+	if(!bAmSpectator && iRobotCount >= 4 || !g_bCanPlayAsBot[client])
 	{
 		CPrintToChat(client, "{red}Robots are full.");
 		return Plugin_Handled;
