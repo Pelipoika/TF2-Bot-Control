@@ -141,6 +141,7 @@ int g_iOffsetSquad;
 int g_iOffsetBotAttribs;
 int g_iOffsetAutoJumpMin;
 int g_iOffsetAutoJumpMax;
+int g_iOffsetTeleportWhere;
 int g_iOffsetMissionBot;
 int g_iOffsetSupportLimited;
 
@@ -275,14 +276,16 @@ public void OnPluginStart()
 	// Member: m_bViewingCYOAPDA (offset 9160)
 	PrintToServer("m_bViewingCYOAPDA = %i", FindSendPropInfo("CTFPlayer", "m_bViewingCYOAPDA"));
 	
-	//m_nWeaponRestrict 9580
+	//m_nWeaponRestrict 
 	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
-	//m_nBotAttrs 9584
+	//m_nBotAttrs 
 	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetBotAttribs         += GameConfGetOffset(hConf, "m_nBotAttrs");	
-	//m_flAutoJumpMin 9932
+	//m_flAutoJumpMin 
 	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetAutoJumpMin        += GameConfGetOffset(hConf, "m_flAutoJumpMin");
-	//m_flAutoJumpMax 9936
+	//m_flAutoJumpMax 
 	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetAutoJumpMax        += GameConfGetOffset(hConf, "m_flAutoJumpMax");
+	//m_TeleportWhere
+	if(LookupOffset(g_iOffsetTeleportWhere,      "CTFPlayer", "m_iPlayerSkinOverride")) g_iOffsetTeleportWhere  += GameConfGetOffset(hConf, "m_TeleportWhere");
 	
 	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))		g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
 	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))		g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
@@ -1980,11 +1983,24 @@ public Action Listener_Build(int client, char[] command, int args)
 		return Plugin_Handled;
 	
 	//Don't allow building any teleporters at all 
-	//if the engineer doesn't have the "TELEPORTTOHINT" attribute
-	if(objType == TFObject_Teleporter && !HasAttributes(client, TELEPORTTOHINT))
+	//if the engineer doesn't have a TeleportWhere location
+	if(objType == TFObject_Teleporter && !IsAllowedToBuildTeleporter(client))
 		return Plugin_Handled;
 	
 	return Plugin_Continue;
+}
+
+stock bool IsAllowedToBuildTeleporter(int client)
+{
+	int iBot = GetClientOfUserId(g_iPlayersBot[client]);
+	if (iBot <= 0)
+		return false;
+
+	int m_TeleportWhere = GetEntData(iBot, g_iOffsetTeleportWhere);
+	
+	bool bCanBuildTele = (m_TeleportWhere > 0 && FindEntityByClassname(MaxClients, "bot_hint_teleporter_exit") != -1);
+
+	return bCanBuildTele;
 }
 
 //Detours

@@ -178,6 +178,13 @@
 				"windows"	"2"
 				"linux"		"2"
 			}
+			
+			//https://github.com/sigsegv-mvm/mvm-reversed/blob/7ce8ac98fe187a07d71df87b02b4c038548837e9/server/tf/bot/behavior/engineer/mvm_engineer/tf_bot_mvm_engineer_idle.cpp#L93
+			"m_TeleportWhere" //.Length | W m_iPlayerSkinOverride + 756 = 9984 | L =  980
+			{
+				"windows"	"756"
+				"linux"	"755"
+			}
 		}
 	}
 }
