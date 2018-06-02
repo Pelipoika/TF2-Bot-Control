@@ -7,7 +7,6 @@
 #include <tf2attributes>
 #include <steamworks>
 #include <dhooks>
-#include <bot-control>
 
 #pragma newdecls required
 
@@ -183,6 +182,11 @@ float g_flNextBombUpgradeTime[MAXPLAYERS+1];
 
 #define PLUGIN_VERSION "1.0"
 
+//Detours
+Handle g_hGetEventChangeAttributes;
+Handle g_hSelectPatient;
+Handle g_hIsAllowedToHealTarget;
+
 public Plugin myinfo = 
 {
 	name = "[TF2] MvM Bot Control",
@@ -273,22 +277,71 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);			//silent pickup? or maybe it doesnt exist im not sure.
 	if ((g_hSDKPickup = EndPrepSDKCall()) == null) SetFailState("Failed to create SDKCall for CCaptureFlag::PickUp offset!");
 	
-	// Member: m_bViewingCYOAPDA (offset 9160)
-	PrintToServer("m_bViewingCYOAPDA = %i", FindSendPropInfo("CTFPlayer", "m_bViewingCYOAPDA"));
 	
-	//m_nWeaponRestrict 
-	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict");
-	//m_nBotAttrs 
-	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetBotAttribs         += GameConfGetOffset(hConf, "m_nBotAttrs");	
-	//m_flAutoJumpMin 
-	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetAutoJumpMin        += GameConfGetOffset(hConf, "m_flAutoJumpMin");
-	//m_flAutoJumpMax 
-	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_bViewingCYOAPDA"))	g_iOffsetAutoJumpMax        += GameConfGetOffset(hConf, "m_flAutoJumpMax");
-	//m_TeleportWhere
-	if(LookupOffset(g_iOffsetTeleportWhere,      "CTFPlayer", "m_iPlayerSkinOverride")) g_iOffsetTeleportWhere  += GameConfGetOffset(hConf, "m_TeleportWhere");
 	
-	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))		g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
-	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))		g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
+	
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	g_hGetEventChangeAttributes = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_Int, ThisPointer_CBaseEntity);
+	if (!g_hGetEventChangeAttributes) SetFailState("[BotControl] Failed to setup detour for CTFBot::GetEventChangeAttributes");
+	
+	if (!DHookSetFromConf(g_hGetEventChangeAttributes, hConf, SDKConf_Signature, "CTFBot::GetEventChangeAttributes"))
+		SetFailState("[BotControl] Failed to load CTFBot::GetEventChangeAttributes signature from gamedata");
+	
+	DHookAddParam(g_hGetEventChangeAttributes, HookParamType_Unknown);
+	
+	if (!DHookEnableDetour(g_hGetEventChangeAttributes, false, CTFBot_GetEventChangeAttributes))     SetFailState("[BotControl] Failed to detour CTFBot::GetEventChangeAttributes.");
+	if (!DHookEnableDetour(g_hGetEventChangeAttributes, true, CTFBot_GetEventChangeAttributes_Post)) SetFailState("[BotControl] Failed to detour CTFBot::GetEventChangeAttributes_Post.");
+	
+	PrintToServer("[BotControl] CCaptureFlag::GetEventChangeAttributes detoured!");
+	
+	//--------------------------------------------------------------------------------------------------------
+	
+	g_hSelectPatient = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_CBaseEntity, ThisPointer_Ignore);
+	if (!g_hSelectPatient) SetFailState("[BotControl] Failed to setup detour for CTFBotMedicHeal::SelectPatient");
+	
+	if (!DHookSetFromConf(g_hSelectPatient, hConf, SDKConf_Signature, "CTFBotMedicHeal::SelectPatient"))
+		SetFailState("[BotControl] Failed to load CTFBotMedicHeal::SelectPatient signature from gamedata");
+	
+	DHookAddParam(g_hSelectPatient, HookParamType_CBaseEntity);	//CTFBot *healer
+	DHookAddParam(g_hSelectPatient, HookParamType_CBaseEntity);	//CTFPlayer *patient
+	
+	if (!DHookEnableDetour(g_hSelectPatient, false, CTFBotMedicHeal_SelectPatient)) 	 SetFailState("[BotControl] Failed to detour CTFBotMedicHeal::SelectPatient.");
+	if (!DHookEnableDetour(g_hSelectPatient, true,  CTFBotMedicHeal_SelectPatient_Post)) SetFailState("[BotControl] Failed to detour CTFBotMedicHeal::CTFBotMedicHeal_SelectPatient_Post.");
+	
+	PrintToServer("[BotControl] CTFBotMedicHeal::SelectPatient detoured!");
+	
+	//--------------------------------------------------------------------------------------------------------
+	
+	//CWeaponMedigun_IsAllowedToHealTarget
+	g_hIsAllowedToHealTarget = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_Bool, ThisPointer_CBaseEntity);
+	if (!g_hIsAllowedToHealTarget) SetFailState("[BotControl] Failed to setup detour for CWeaponMedigun::AllowedToHealTarget");
+	
+	if (!DHookSetFromConf(g_hIsAllowedToHealTarget, hConf, SDKConf_Signature, "CWeaponMedigun::AllowedToHealTarget"))
+		SetFailState("[BotControl] Failed to load CWeaponMedigun::AllowedToHealTarget signature from gamedata");
+	
+	DHookAddParam(g_hIsAllowedToHealTarget, HookParamType_CBaseEntity);	//CBaseEntity *pEntity
+	
+	if (!DHookEnableDetour(g_hIsAllowedToHealTarget, false, CWeaponMedigun_IsAllowedToHealTarget))      SetFailState("[BotControl] Failed to detour CWeaponMedigun::AllowedToHealTarget.");
+	if (!DHookEnableDetour(g_hIsAllowedToHealTarget, true,  CWeaponMedigun_IsAllowedToHealTarget_Post)) SetFailState("[BotControl] Failed to detour CWeaponMedigun::AllowedToHealTarget_Post.");
+	
+	PrintToServer("[BotControl] CWeaponMedigun::AllowedToHealTarget detoured!");
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	
+	
+	
+	
+	if(LookupOffset(g_iOffsetWeaponRestrictions, "CTFPlayer", "m_bViewingCYOAPDA"))	    g_iOffsetWeaponRestrictions += GameConfGetOffset(hConf, "m_nWeaponRestrict"); //m_nWeaponRestrict 
+	if(LookupOffset(g_iOffsetBotAttribs,         "CTFPlayer", "m_bViewingCYOAPDA"))	    g_iOffsetBotAttribs         += GameConfGetOffset(hConf, "m_nBotAttrs");	      //m_nBotAttrs 
+	if(LookupOffset(g_iOffsetAutoJumpMin,        "CTFPlayer", "m_bViewingCYOAPDA"))	    g_iOffsetAutoJumpMin        += GameConfGetOffset(hConf, "m_flAutoJumpMin");   //m_flAutoJumpMin 
+	if(LookupOffset(g_iOffsetAutoJumpMax,        "CTFPlayer", "m_bViewingCYOAPDA"))	    g_iOffsetAutoJumpMax        += GameConfGetOffset(hConf, "m_flAutoJumpMax");   //m_flAutoJumpMax 
+	if(LookupOffset(g_iOffsetTeleportWhere,      "CTFPlayer", "m_iPlayerSkinOverride")) g_iOffsetTeleportWhere      += GameConfGetOffset(hConf, "m_TeleportWhere");   //m_TeleportWhere
+	
+	if(LookupOffset(g_iOffsetMissionBot,         "CTFPlayer", "m_nCurrency"))		    g_iOffsetMissionBot         -= GameConfGetOffset(hConf, "m_bMissionBot");
+	if(LookupOffset(g_iOffsetSupportLimited,     "CTFPlayer", "m_nCurrency"))		    g_iOffsetSupportLimited     -= GameConfGetOffset(hConf, "m_bSupportLimited");
 	
 	
 	g_iOffsetSquad = g_iOffsetWeaponRestrictions + GameConfGetOffset(hConf, "m_Squad");
@@ -387,6 +440,20 @@ public void OnPluginStart()
 		if(IsClientInGame(client))
 			OnClientPutInServer(client);
 }
+
+
+public void OnPluginEnd()
+{
+	DHookDisableDetour(g_hGetEventChangeAttributes, false, CTFBot_GetEventChangeAttributes);
+	DHookDisableDetour(g_hGetEventChangeAttributes, true,  CTFBot_GetEventChangeAttributes_Post);
+	
+	DHookDisableDetour(g_hSelectPatient, false, CTFBotMedicHeal_SelectPatient);
+	DHookDisableDetour(g_hSelectPatient, true,  CTFBotMedicHeal_SelectPatient_Post);
+	
+	DHookDisableDetour(g_hSelectPatient, false, CWeaponMedigun_IsAllowedToHealTarget);
+	DHookDisableDetour(g_hSelectPatient, true,  CWeaponMedigun_IsAllowedToHealTarget_Post);
+}
+
 
 public void TF2_OnWaitingForPlayersEnd()
 {
@@ -2004,53 +2071,98 @@ stock bool IsAllowedToBuildTeleporter(int client)
 }
 
 //Detours
-public Action CTFBotMedicHeal_SelectPatient(int actor, int old_patient, int &desiredPatient)
+public MRESReturn CTFBot_GetEventChangeAttributes(int pThis, Handle hReturn, Handle hParams) { return MRES_Ignored; }
+public MRESReturn CTFBot_GetEventChangeAttributes_Post(int pThis, Handle hReturn, Handle hParams)
 {
-	Address MedicsBotsSquad = TF2_GetBotSquad(actor);
-	if(MedicsBotsSquad == Address_Null)
-		return Plugin_Continue;
+	if(!IsFakeClient(pThis))
+	{
+		PrintToServer("CTFBot::CTFBot_GetEventChangeAttributes_Post BLOCKED on actual player");
 		
-	int iLeader = SDKCall(g_hSDKGetSquadLeader, MedicsBotsSquad);
-	int iLeader2 = TF2_GetBotSquadLeader(actor);
+		DHookSetReturn(hReturn, 0);
+		return MRES_Supercede;
+	}
 	
-	desiredPatient = iLeader;
-	
-	if(iLeader2 > 0)
-		desiredPatient = iLeader2;
-
-	return Plugin_Changed;
+	return MRES_Ignored;
 }
 
-public Action CWeaponMedigun_IsAllowedToHealTarget(int iMedigun, int iHealTarget, bool& bResult)
+int g_iLastHealer = -1;
+
+public MRESReturn CTFBotMedicHeal_SelectPatient(Handle hReturn, Handle hParams)
 {
-	int iOwner = GetEntPropEnt(iMedigun, Prop_Send, "m_hOwnerEntity");
-	if (iOwner > 0 && iOwner <= MaxClients && IsClientInGame(iOwner))
+	g_iLastHealer  = !DHookIsNullParam(hParams, 1) ? DHookGetParam(hParams, 1) : -1;
+	
+	return MRES_Ignored;
+}
+
+public MRESReturn CTFBotMedicHeal_SelectPatient_Post(Handle hReturn, Handle hParams)
+{
+	int desiredPatient = DHookGetReturn(hReturn);
+
+	if(g_iLastHealer > 0)
 	{
-		if (IsFakeClient(iOwner) && g_bIsControlled[iOwner])
+		Address MedicsBotsSquad = TF2_GetBotSquad(g_iLastHealer);
+		if(MedicsBotsSquad != Address_Null)
 		{
-			bResult = false;//Don't allow a controlled bot to heal
-			return Plugin_Changed;
+			int iLeader = SDKCall(g_hSDKGetSquadLeader, MedicsBotsSquad);
+			int iLeader2 = TF2_GetBotSquadLeader(g_iLastHealer);
+			
+			desiredPatient = iLeader;
+			
+			if(iLeader2 > 0) {
+				desiredPatient = iLeader2;
+			}
 		}
 		
-		if (IsFakeClient(iOwner)) 
-			return Plugin_Continue;
-			
-		if (!g_bControllingBot[iOwner]) 
-			return Plugin_Continue;
-		
+		//PrintToServer("CTFBotMedicHeal::CTFBotMedicHeal_SelectPatient_Post return %i", desiredPatient);
+	}
+	
+	DHookSetReturn(hReturn, desiredPatient);
+	return MRES_Supercede;
+}
+
+int g_iLastMedigun = -1;
+int g_iLastMedigunTarget = -1;
+
+public MRESReturn CWeaponMedigun_IsAllowedToHealTarget(int pThis, Handle hReturn, Handle hParams)
+{
+	g_iLastMedigun = pThis;
+	g_iLastMedigunTarget = !DHookIsNullParam(hParams, 1) ? DHookGetParam(hParams, 1) : -1;
+	
+	return MRES_Ignored;
+}
+
+public MRESReturn CWeaponMedigun_IsAllowedToHealTarget_Post(int pThis, Handle hReturn, Handle hParams)
+{
+	bool bOriginalResult = DHookGetReturn(hReturn);
+	
+	int iOwner = GetEntPropEnt(g_iLastMedigun, Prop_Send, "m_hOwnerEntity");
+	
+	//Controlled bot's aren't allowed to heal.
+	if(IsFakeClient(iOwner) && g_bIsControlled[iOwner])
+	{
+		DHookSetReturn(hReturn, false);
+		return MRES_Supercede;
+	}
+	
+	if (!IsFakeClient(iOwner) && g_bControllingBot[iOwner])
+	{
 		int iBot = GetClientOfUserId(g_iPlayersBot[iOwner]);
 		if (iBot > 0 && iBot <= MaxClients && IsPlayerAlive(iBot))
 		{
 			int iLeader = TF2_GetBotSquadLeader(iBot);
-			if (iLeader > 0 && iLeader <= MaxClients && IsClientInGame(iLeader) && IsPlayerAlive(iLeader) && iLeader != iBot)//If the player is controlling the leader then no need to restrict his heal target
+			
+			//If the player is controlling the squad leader then we don't need to restrict their heal target.
+			if (iLeader > 0 && iLeader <= MaxClients && IsClientInGame(iLeader) && IsPlayerAlive(iLeader) && iLeader != iBot)
 			{
-				bResult = (iHealTarget == iLeader);
-				return Plugin_Changed;
+				bOriginalResult = (g_iLastMedigunTarget == iLeader);
 			}
 		}
 	}
 	
-	return Plugin_Continue;
+	//PrintToServer("CWeaponMedigun_IsAllowedToHealTarget_Post %i %i", g_iLastMedigunTarget, bOriginalResult);
+	
+	DHookSetReturn(hReturn, bOriginalResult);
+	return MRES_Supercede;
 }
 
 stock int TF2_GetObjectCount(int client, TFObjectType type)
