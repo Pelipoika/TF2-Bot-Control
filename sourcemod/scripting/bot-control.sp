@@ -1998,7 +1998,7 @@ stock bool IsAllowedToBuildTeleporter(int client)
 
 	int m_TeleportWhere = GetEntData(iBot, g_iOffsetTeleportWhere);
 	
-	bool bCanBuildTele = (m_TeleportWhere > 0 && FindEntityByClassname(MaxClients, "bot_hint_teleporter_exit") != -1);
+	bool bCanBuildTele = (m_TeleportWhere > 0 && FindEntityByClassname(MAXPLAYERS + 1, "bot_hint_teleporter_exit") != -1);
 
 	return bCanBuildTele;
 }
