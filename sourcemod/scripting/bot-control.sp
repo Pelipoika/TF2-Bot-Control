@@ -283,6 +283,7 @@ public void OnPluginStart()
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
+	//CTFBot::GetEventChangeAttributes
 	g_hGetEventChangeAttributes = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_Int, ThisPointer_CBaseEntity);
 	if (!g_hGetEventChangeAttributes) SetFailState("[BotControl] Failed to setup detour for CTFBot::GetEventChangeAttributes");
 	
@@ -291,20 +292,20 @@ public void OnPluginStart()
 	
 	DHookAddParam(g_hGetEventChangeAttributes, HookParamType_Unknown);
 	
-	if (!DHookEnableDetour(g_hGetEventChangeAttributes, false, CTFBot_GetEventChangeAttributes))     SetFailState("[BotControl] Failed to detour CTFBot::GetEventChangeAttributes.");
-	if (!DHookEnableDetour(g_hGetEventChangeAttributes, true, CTFBot_GetEventChangeAttributes_Post)) SetFailState("[BotControl] Failed to detour CTFBot::GetEventChangeAttributes_Post.");
+	if (!DHookEnableDetour(g_hGetEventChangeAttributes, false, CTFBot_GetEventChangeAttributes))      SetFailState("[BotControl] Failed to detour CTFBot::GetEventChangeAttributes.");
+	if (!DHookEnableDetour(g_hGetEventChangeAttributes, true,  CTFBot_GetEventChangeAttributes_Post)) SetFailState("[BotControl] Failed to detour CTFBot::GetEventChangeAttributes_Post.");
 	
-	PrintToServer("[BotControl] CCaptureFlag::GetEventChangeAttributes detoured!");
+	PrintToServer("[BotControl] CTFBot::GetEventChangeAttributes detoured!");
 	
-	//--------------------------------------------------------------------------------------------------------
 	
+	//CTFBotMedicHeal::SelectPatient
 	g_hSelectPatient = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_CBaseEntity, ThisPointer_Ignore);
 	if (!g_hSelectPatient) SetFailState("[BotControl] Failed to setup detour for CTFBotMedicHeal::SelectPatient");
 	
 	if (!DHookSetFromConf(g_hSelectPatient, hConf, SDKConf_Signature, "CTFBotMedicHeal::SelectPatient"))
 		SetFailState("[BotControl] Failed to load CTFBotMedicHeal::SelectPatient signature from gamedata");
 	
-	DHookAddParam(g_hSelectPatient, HookParamType_CBaseEntity);	//CTFBot *healer
+	DHookAddParam(g_hSelectPatient, HookParamType_CBaseEntity);	//CTFBot    *healer
 	DHookAddParam(g_hSelectPatient, HookParamType_CBaseEntity);	//CTFPlayer *patient
 	
 	if (!DHookEnableDetour(g_hSelectPatient, false, CTFBotMedicHeal_SelectPatient)) 	 SetFailState("[BotControl] Failed to detour CTFBotMedicHeal::SelectPatient.");
@@ -312,9 +313,8 @@ public void OnPluginStart()
 	
 	PrintToServer("[BotControl] CTFBotMedicHeal::SelectPatient detoured!");
 	
-	//--------------------------------------------------------------------------------------------------------
 	
-	//CWeaponMedigun_IsAllowedToHealTarget
+	//CWeaponMedigun::IsAllowedToHealTarget
 	g_hIsAllowedToHealTarget = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_Bool, ThisPointer_CBaseEntity);
 	if (!g_hIsAllowedToHealTarget) SetFailState("[BotControl] Failed to setup detour for CWeaponMedigun::AllowedToHealTarget");
 	
@@ -413,7 +413,6 @@ public void OnPluginStart()
 	AddCommandListener(Listener_Block,      "kill");
 	AddCommandListener(Listener_Block,      "explode");
 	AddCommandListener(Listener_Build,      "build");
-	AddCommandListener(Listener_ChoseHuman, "tournament_player_readystate");
 
 	HookEvent("teamplay_flag_event",  Event_FlagEvent);
 	HookEvent("player_team",          Event_PlayerTeam,  EventHookMode_Pre);
@@ -516,10 +515,10 @@ public Action Command_ToggleRandomPicker(int client, int args)
 		g_bRandomlyChooseBot[client] = false;
 	}
 	
-	if(TF2_GetClientTeam(client) != TFTeam_Spectator 
-	&& TF2_GetClientTeam(client) != TFTeam_Blue)
+	if(TF2_GetClientTeam(client) != TFTeam_Spectator && TF2_GetClientTeam(client) != TFTeam_Blue)
 	{
-		TF2_ChangeClientTeam(client, TFTeam_Spectator);
+		FakeClientCommand(client, "jointeam spectator");
+		FakeClientCommand(client, "spectate");
 	}
 	
 	return Plugin_Handled;
@@ -2001,24 +2000,6 @@ public Action OnObjectThink(int iEnt)
 	}
 }
 
-public Action Listener_ChoseHuman(int client, char[] command, int args)
-{
-	if(!IsClientInGame(client) || !g_bCanPlayAsBot[client] || !IsPlayerAlive(client))
-		return Plugin_Continue;
-		
-	if(TF2_GetClientTeam(client) != TFTeam_Red)
-		return Plugin_Continue;
-		
-	char strArg1[8];
-	GetCmdArg(1, strArg1, sizeof(strArg1));
-	
-	//Player pressed F4
-	if(StringToInt(strArg1) == 1)
-		g_bCanPlayAsBot[client] = false;
-	
-	return Plugin_Continue;
-}
-
 public Action Listener_Build(int client, char[] command, int args)
 {
 	//Must be alive, ingame and controlling a bot
@@ -2089,7 +2070,7 @@ int g_iLastHealer = -1;
 
 public MRESReturn CTFBotMedicHeal_SelectPatient(Handle hReturn, Handle hParams)
 {
-	g_iLastHealer  = !DHookIsNullParam(hParams, 1) ? DHookGetParam(hParams, 1) : -1;
+	g_iLastHealer = !DHookIsNullParam(hParams, 1) ? DHookGetParam(hParams, 1) : -1;
 	
 	return MRES_Ignored;
 }
@@ -2182,23 +2163,34 @@ stock int TF2_GetObjectCount(int client, TFObjectType type)
 
 public Action Listener_Jointeam(int client, char[] command, int args)
 {
+	//Count player bots.
 	int iRobotCount = 0;
-	
 	for(int i = 1; i <= MaxClients; i++)
-		if(IsClientInGame(i) && !IsFakeClient(i))
-			if(TF2_GetClientTeam(i) == TFTeam_Blue || TF2_GetClientTeam(i) == TFTeam_Spectator)
-				iRobotCount++;
-				
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		if(IsFakeClient(i))
+			continue;
+		
+		if(TF2_GetClientTeam(i) != TFTeam_Blue || TF2_GetClientTeam(i) != TFTeam_Spectator)
+			continue;
+		
+		iRobotCount++;
+	}
+	
+	PrintToServer("iRobotCount %i", iRobotCount);
+	if(TF2_GetClientTeam(client) != TFTeam_Spectator && iRobotCount >= 4)
+	{
+		CPrintToChat(client, "{red}Robots are full.");
+		return Plugin_Handled;
+	}
+	
 	if(iRobotCount < 4 || CheckCommandAccess(client, "sm_admin", ADMFLAG_ROOT, true))
 	{
 		if(TF2_GetClientTeam(client) != TFTeam_Spectator)
 		{
-			if(!g_bCanPlayAsBot[client])
-			{
-				CPrintToChat(client, "{red}You pressed F4 and now have to stay for this wave");
-				return Plugin_Handled;
-			}
-			else if(TF2_GetClientTeam(client) == TFTeam_Blue && g_bControllingBot[client])
+			if(TF2_GetClientTeam(client) == TFTeam_Blue && g_bControllingBot[client] && g_bCanPlayAsBot[client])
 			{
 				TF2_RestoreBot(client);
 				
