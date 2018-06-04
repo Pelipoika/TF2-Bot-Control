@@ -440,20 +440,6 @@ public void OnPluginStart()
 			OnClientPutInServer(client);
 }
 
-
-public void OnPluginEnd()
-{
-	DHookDisableDetour(g_hGetEventChangeAttributes, false, CTFBot_GetEventChangeAttributes);
-	DHookDisableDetour(g_hGetEventChangeAttributes, true,  CTFBot_GetEventChangeAttributes_Post);
-	
-	DHookDisableDetour(g_hSelectPatient, false, CTFBotMedicHeal_SelectPatient);
-	DHookDisableDetour(g_hSelectPatient, true,  CTFBotMedicHeal_SelectPatient_Post);
-	
-	DHookDisableDetour(g_hSelectPatient, false, CWeaponMedigun_IsAllowedToHealTarget);
-	DHookDisableDetour(g_hSelectPatient, true,  CWeaponMedigun_IsAllowedToHealTarget_Post);
-}
-
-
 public void TF2_OnWaitingForPlayersEnd()
 {
 	if(!TF2_IsMvM())
@@ -712,22 +698,21 @@ public MRESReturn IsValidTarget(int pThis, Handle hReturn, Handle hParams)
 		return MRES_Ignored;
 	
 	int iTarget = DHookGetParam(hParams, 1);
+	
+	//Valid
 	if(iTarget <= 0 || iTarget > MaxClients)
 		return MRES_Ignored;
 	
+	//Valid
 	if(!IsClientInGame(pThis) || !IsClientInGame(iTarget))
 		return MRES_Ignored;
 		
-	if(!IsPlayerAlive(iTarget) || !IsFakeClient(pThis))
+	//We only care about spectating bots that are controlled
+	if(!IsFakeClient(iTarget) || !g_bIsControlled[iTarget])
 		return MRES_Ignored;
 		
-	if(g_bIsControlled[iTarget])
-	{
-		DHookSetReturn(hReturn, false);	
-		return MRES_Supercede;
-	}
-
-	return MRES_Ignored;
+	DHookSetReturn(hReturn, false);	
+	return MRES_Supercede;
 }
 
 public MRESReturn CTFPlayer_ShouldGib(int pThis, Handle hReturn, Handle hParams)
@@ -2085,11 +2070,14 @@ public MRESReturn CTFBotMedicHeal_SelectPatient_Post(Handle hReturn, Handle hPar
 		if(MedicsBotsSquad != Address_Null)
 		{
 			int iLeader = SDKCall(g_hSDKGetSquadLeader, MedicsBotsSquad);
+			if (iLeader > 0 && iLeader <= MaxClients && IsClientInGame(iLeader))
+			{
+				desiredPatient = iLeader;
+			}
+			
 			int iLeader2 = TF2_GetBotSquadLeader(g_iLastHealer);
-			
-			desiredPatient = iLeader;
-			
-			if(iLeader2 > 0) {
+			if (iLeader2 > 0 && iLeader2 <= MaxClients && IsClientInGame(iLeader2))
+			{
 				desiredPatient = iLeader2;
 			}
 		}
