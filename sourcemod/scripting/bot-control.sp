@@ -183,7 +183,7 @@ float g_flNextBombUpgradeTime[MAXPLAYERS+1];
 #define PLUGIN_VERSION "1.0"
 
 //Detours
-Handle g_hGetEventChangeAttributes;
+//Handle g_hGetEventChangeAttributes;
 Handle g_hSelectPatient;
 Handle g_hIsAllowedToHealTarget;
 
@@ -284,18 +284,18 @@ public void OnPluginStart()
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	//CTFBot::GetEventChangeAttributes
-	g_hGetEventChangeAttributes = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_Int, ThisPointer_CBaseEntity);
+/*	g_hGetEventChangeAttributes = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_Int, ThisPointer_CBaseEntity);
 	if (!g_hGetEventChangeAttributes) SetFailState("[BotControl] Failed to setup detour for CTFBot::GetEventChangeAttributes");
 	
 	if (!DHookSetFromConf(g_hGetEventChangeAttributes, hConf, SDKConf_Signature, "CTFBot::GetEventChangeAttributes"))
 		SetFailState("[BotControl] Failed to load CTFBot::GetEventChangeAttributes signature from gamedata");
 	
-	DHookAddParam(g_hGetEventChangeAttributes, HookParamType_Unknown);
+	DHookAddParam(g_hGetEventChangeAttributes, HookParamType_ObjectPtr);
 	
 	if (!DHookEnableDetour(g_hGetEventChangeAttributes, false, CTFBot_GetEventChangeAttributes))      SetFailState("[BotControl] Failed to detour CTFBot::GetEventChangeAttributes.");
 	if (!DHookEnableDetour(g_hGetEventChangeAttributes, true,  CTFBot_GetEventChangeAttributes_Post)) SetFailState("[BotControl] Failed to detour CTFBot::GetEventChangeAttributes_Post.");
 	
-	PrintToServer("[BotControl] CTFBot::GetEventChangeAttributes detoured!");
+	PrintToServer("[BotControl] CTFBot::GetEventChangeAttributes detoured!");*/
 	
 	
 	//CTFBotMedicHeal::SelectPatient
@@ -383,8 +383,8 @@ public void OnPluginStart()
 	
 	for (int i = 0; i < 2; i++)
 	{
-		int instruction = LoadFromAddress(iAddr + view_as<Address>(i), NumberType_Int8);
-		PrintToServer("0x%x %i", instruction, instruction);
+		//int instruction = LoadFromAddress(iAddr + view_as<Address>(i), NumberType_Int8);
+		//PrintToServer("0x%x %i", instruction, instruction);
 		
 		//NOP the jz
 		StoreToAddress(iAddr + view_as<Address>(i), 0x90, NumberType_Int8);
@@ -2037,10 +2037,19 @@ stock bool IsAllowedToBuildTeleporter(int client)
 }
 
 //Detours
-public MRESReturn CTFBot_GetEventChangeAttributes(int pThis, Handle hReturn, Handle hParams) { return MRES_Ignored; }
+/*
+int g_iEventAttributesGetter = -1;
+
+public MRESReturn CTFBot_GetEventChangeAttributes(int pThis, Handle hReturn, Handle hParams) 
+{
+	g_iEventAttributesGetter = pThis;
+
+	return MRES_Ignored; 
+}
+
 public MRESReturn CTFBot_GetEventChangeAttributes_Post(int pThis, Handle hReturn, Handle hParams)
 {
-	if(!IsFakeClient(pThis))
+	if(g_iEventAttributesGetter > 0 && !IsFakeClient(g_iEventAttributesGetter))
 	{
 		PrintToServer("CTFBot::CTFBot_GetEventChangeAttributes_Post BLOCKED on actual player");
 		
@@ -2049,7 +2058,7 @@ public MRESReturn CTFBot_GetEventChangeAttributes_Post(int pThis, Handle hReturn
 	}
 	
 	return MRES_Ignored;
-}
+}*/
 
 int g_iLastHealer = -1;
 
@@ -2084,6 +2093,13 @@ public MRESReturn CTFBotMedicHeal_SelectPatient_Post(Handle hReturn, Handle hPar
 		
 		//PrintToServer("CTFBotMedicHeal::CTFBotMedicHeal_SelectPatient_Post return %i", desiredPatient);
 	}
+	
+	
+	//Scuffed way to fix error
+	if(desiredPatient <= 0)
+	{
+		return MRES_Ignored;
+	}	
 	
 	DHookSetReturn(hReturn, desiredPatient);
 	return MRES_Supercede;
