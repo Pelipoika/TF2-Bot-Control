@@ -1449,7 +1449,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					}
 					if(g_flNextBombUpgradeTime[client] <= GetGameTime() && g_iFlagCarrierUpgradeLevel[client] < 3 && GetEntPropEnt(client, Prop_Send, "m_hGroundEntity") != -1)	//Time to upgrade
 					{
-						FakeClientCommand(client, "taunt");
+						FakeClientCommandThrottled(client, "taunt");
 						
 						if(TF2_IsPlayerInCondition(client, TFCond_Taunting))
 						{
@@ -1565,6 +1565,20 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	}
 	
 	return Plugin_Continue;
+}
+
+float g_flNextCommand[MAXPLAYERS + 1];
+
+stock bool FakeClientCommandThrottled(int client, const char[] command)
+{
+	if(g_flNextCommand[client] > GetGameTime())
+		return false;
+	
+	FakeClientCommand(client, command);
+	
+	g_flNextCommand[client] = GetGameTime() + 0.4;
+	
+	return true;
 }
 
 public Action Player_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
