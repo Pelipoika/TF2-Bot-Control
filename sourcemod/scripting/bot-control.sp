@@ -444,8 +444,8 @@ public void TF2_OnWaitingForPlayersEnd()
 {
 	if(!TF2_IsMvM())
 	{
-		SetFailState("[Bot Control] Disabling for non mvm map");
 		SteamWorks_SetGameDescription("Team Fortress 2");
+		SetFailState("[Bot Control] Disabling for non mvm map");
 	}
 }
 
