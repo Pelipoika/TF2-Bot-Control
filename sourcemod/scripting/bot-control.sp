@@ -479,8 +479,7 @@ public Action Command_ToggleRandomPicker(int client, int args)
 		if(IsFakeClient(i))
 			continue;
 		
-		if(TF2_GetClientTeam(i) == TFTeam_Blue 
-		|| TF2_GetClientTeam(i) == TFTeam_Spectator)
+		if(TF2_GetClientTeam(i) == TFTeam_Blue || TF2_GetClientTeam(i) == TFTeam_Spectator)
 			iRobotCount++;
 	}
 	
@@ -2181,6 +2180,8 @@ stock int TF2_GetObjectCount(int client, TFObjectType type)
 
 public Action Listener_Jointeam(int client, char[] command, int args)
 {
+	bool bAmSpectator = (TF2_GetClientTeam(client) == TFTeam_Spectator);
+
 	//Count player bots.
 	int iRobotCount = 0;
 	for(int i = 1; i <= MaxClients; i++)
@@ -2191,14 +2192,11 @@ public Action Listener_Jointeam(int client, char[] command, int args)
 		if(IsFakeClient(i))
 			continue;
 		
-		if(TF2_GetClientTeam(i) != TFTeam_Blue || TF2_GetClientTeam(i) != TFTeam_Spectator)
-			continue;
-		
-		iRobotCount++;
+		if(TF2_GetClientTeam(i) == TFTeam_Blue || TF2_GetClientTeam(i) == TFTeam_Spectator)
+			iRobotCount++;
 	}
 	
-	PrintToServer("iRobotCount %i", iRobotCount);
-	if(TF2_GetClientTeam(client) != TFTeam_Spectator && iRobotCount >= 4)
+	if(!bAmSpectator && iRobotCount >= 4 || !g_bCanPlayAsBot[client])
 	{
 		CPrintToChat(client, "{red}Robots are full.");
 		return Plugin_Handled;
